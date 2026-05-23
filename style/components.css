@@ -1,0 +1,912 @@
+/* ══════════════════════════════════════════
+   BARS — Рэп Рейтинг
+   components.css — компоненты интерфейса
+   ══════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════
+   ЛЕНТА (FeedView)
+   ═══════════════════════════════════════ */
+.feed-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	margin-bottom: 32px;
+	gap: 20px;
+}
+
+.feed-filters {
+	display: flex;
+	gap: 6px;
+}
+
+.filter-pill {
+	padding: 6px 14px;
+	border-radius: 99px;
+	font-size: 13px;
+	font-weight: 400;
+	background: none;
+	border: 1px solid var(--border-2);
+	color: var(--text-2);
+	transition: all var(--transition);
+}
+
+.filter-pill:hover {
+	color: var(--text);
+	border-color: var(--border-2);
+}
+
+.filter-pill.active {
+	background: var(--accent);
+	color: #000;
+	border-color: transparent;
+	font-weight: 500;
+}
+
+/* Сетка карточек */
+.tracks-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 16px;
+}
+
+/* ── Карточка трека ── */
+.track-card {
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	transition: border-color var(--transition), transform 0.2s ease;
+	cursor: pointer;
+	text-decoration: none;
+	color: inherit;
+}
+
+.track-card:hover {
+	border-color: var(--border-2);
+	transform: translateY(-2px);
+}
+
+.track-card-cover {
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: cover;
+	background: var(--bg-3);
+	position: relative;
+}
+
+.track-card-cover-placeholder {
+	width: 100%;
+	aspect-ratio: 1;
+	background: var(--bg-3);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 48px;
+	color: var(--text-3);
+}
+
+.track-card-play-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+	transition: opacity var(--transition);
+}
+
+.track-card:hover .track-card-play-overlay {
+	opacity: 1;
+}
+
+.play-btn-circle {
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	background: var(--accent);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+	color: #000;
+	border: none;
+	transition: transform 0.15s ease;
+}
+
+.play-btn-circle:hover {
+	transform: scale(1.08);
+}
+
+.track-card-body {
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1;
+}
+
+.track-card-meta {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.track-card-title {
+	font-size: 16px;
+	font-weight: 500;
+	line-height: 1.3;
+	color: var(--text);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.track-card-author {
+	font-size: 13px;
+	color: var(--text-2);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.track-card-author:hover {
+	color: var(--accent);
+}
+
+.track-card-avatar {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--surface-2);
+}
+
+/* Бейдж с баллом */
+.score-badge {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: var(--accent-dim);
+	border: 1px solid rgba(232, 255, 71, 0.2);
+	border-radius: var(--radius-sm);
+	padding: 4px 10px;
+	min-width: 52px;
+}
+
+.score-badge-num {
+	font-family: var(--font-display);
+	font-size: 22px;
+	line-height: 1;
+	color: var(--accent);
+	letter-spacing: 0.02em;
+}
+
+.score-badge-label {
+	font-size: 10px;
+	color: var(--text-3);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+}
+
+.score-badge--empty .score-badge-num {
+	font-size: 18px;
+	color: var(--text-3);
+}
+
+.track-card-stats {
+	display: flex;
+	gap: 16px;
+	font-size: 12px;
+	color: var(--text-3);
+}
+
+.track-card-stats span {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+
+/* ═══════════════════════════════════════
+   СТРАНИЦА ТРЕКА (TrackView)
+   ═══════════════════════════════════════ */
+.track-page {
+	display: grid;
+	grid-template-columns: 360px 1fr;
+	gap: 40px;
+	align-items: start;
+}
+
+/* Левая колонка — обложка + плеер */
+.track-sidebar {
+	position: sticky;
+	top: calc(var(--header-h) + 24px);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.track-cover {
+	width: 100%;
+	aspect-ratio: 1;
+	border-radius: var(--radius-xl);
+	object-fit: cover;
+	background: var(--bg-3);
+	border: 1px solid var(--border);
+}
+
+.track-cover-placeholder {
+	width: 100%;
+	aspect-ratio: 1;
+	border-radius: var(--radius-xl);
+	background: var(--bg-3);
+	border: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 80px;
+	color: var(--text-3);
+}
+
+/* Аудиоплеер */
+.audio-player {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.player-controls {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.player-play-btn {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: var(--accent);
+	border: none;
+	color: #000;
+	font-size: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	transition: transform 0.15s ease, background var(--transition);
+}
+
+.player-play-btn:hover {
+	transform: scale(1.06);
+	background: #f2ff70;
+}
+
+.player-time {
+	font-size: 12px;
+	color: var(--text-2);
+	font-variant-numeric: tabular-nums;
+	min-width: 70px;
+}
+
+/* Прогресс-бар плеера */
+.player-progress {
+	position: relative;
+	height: 4px;
+	background: var(--border-2);
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+.player-progress-fill {
+	height: 100%;
+	background: var(--accent);
+	border-radius: 2px;
+	width: 0%;
+	pointer-events: none;
+	transition: width 0.1s linear;
+}
+
+.player-progress:hover .player-progress-fill {
+	box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* Громкость */
+.player-volume {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--text-2);
+}
+
+.player-volume input[type="range"] {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 3px;
+	background: var(--border-2);
+	border-radius: 2px;
+	outline: none;
+	flex: 1;
+	cursor: pointer;
+}
+
+.player-volume input[type="range"]::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: var(--accent);
+	cursor: pointer;
+}
+
+/* Правая колонка — инфо + оценка */
+.track-main {
+	display: flex;
+	flex-direction: column;
+	gap: 32px;
+}
+
+.track-info {}
+
+.track-info-title {
+	font-family: var(--font-display);
+	font-size: clamp(28px, 4vw, 52px);
+	line-height: 0.95;
+	letter-spacing: 0.02em;
+	margin-bottom: 12px;
+}
+
+.track-info-author {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 15px;
+	color: var(--text-2);
+	margin-bottom: 16px;
+}
+
+.track-info-author-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--surface-2);
+}
+
+.track-info-author a:hover {
+	color: var(--accent);
+}
+
+.track-info-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.tag {
+	padding: 4px 12px;
+	border-radius: 99px;
+	font-size: 12px;
+	background: var(--surface);
+	border: 1px solid var(--border-2);
+	color: var(--text-2);
+}
+
+/* Итоговый балл трека */
+.track-total-score {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: 24px;
+	display: flex;
+	align-items: center;
+	gap: 24px;
+}
+
+.track-total-score-num {
+	font-family: var(--font-display);
+	font-size: 72px;
+	line-height: 1;
+	letter-spacing: 0.02em;
+	color: var(--accent);
+}
+
+.track-total-score-info {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.track-total-score-title {
+	font-size: 13px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--text-2);
+}
+
+.track-total-score-count {
+	font-size: 13px;
+	color: var(--text-3);
+}
+
+/* Разбивка по критериям */
+.criteria-breakdown {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.criteria-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.criteria-label {
+	font-size: 13px;
+	color: var(--text-2);
+	width: 160px;
+	flex-shrink: 0;
+}
+
+.criteria-bar-wrap {
+	flex: 1;
+	height: 6px;
+	background: var(--border-2);
+	border-radius: 3px;
+	overflow: hidden;
+}
+
+.criteria-bar-fill {
+	height: 100%;
+	background: var(--accent);
+	border-radius: 3px;
+	transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.criteria-val {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text);
+	width: 28px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+
+/* ═══════════════════════════════════════
+   ВИДЖЕТ ОЦЕНКИ (RatingWidget)
+   ═══════════════════════════════════════ */
+.rating-widget {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.rating-widget-title {
+	font-size: 13px;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--text-2);
+}
+
+.rating-criteria {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.rating-criterion {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.rating-criterion-label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.rating-criterion-name {
+	font-size: 14px;
+	color: var(--text);
+}
+
+.rating-criterion-val {
+	font-family: var(--font-display);
+	font-size: 20px;
+	color: var(--accent);
+	line-height: 1;
+	min-width: 24px;
+	text-align: right;
+}
+
+/* Слайдер */
+.rating-slider {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 100%;
+	height: 4px;
+	background: var(--border-2);
+	border-radius: 2px;
+	outline: none;
+	cursor: pointer;
+}
+
+.rating-slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: var(--accent);
+	border: 3px solid var(--bg-2);
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rating-slider::-webkit-slider-thumb:hover,
+.rating-slider:active::-webkit-slider-thumb {
+	transform: scale(1.2);
+	box-shadow: 0 0 0 4px var(--accent-dim);
+}
+
+/* Разделитель + финальный балл внутри виджета */
+.rating-total-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 16px;
+	border-top: 1px solid var(--border);
+}
+
+.rating-total-label {
+	font-size: 14px;
+	color: var(--text-2);
+}
+
+.rating-total-val {
+	font-family: var(--font-display);
+	font-size: 40px;
+	line-height: 1;
+	color: var(--accent);
+}
+
+/* Уже оценил */
+.rating-done {
+	text-align: center;
+	padding: 20px;
+	color: var(--text-2);
+	font-size: 14px;
+}
+
+.rating-done-icon {
+	font-size: 32px;
+	margin-bottom: 8px;
+}
+
+
+/* ═══════════════════════════════════════
+   ЗАГРУЗКА ТРЕКА (UploadView)
+   ═══════════════════════════════════════ */
+.upload-layout {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 32px;
+	align-items: start;
+}
+
+.upload-form {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xl);
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.upload-preview {
+	position: sticky;
+	top: calc(var(--header-h) + 24px);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.upload-cover-preview {
+	width: 100%;
+	aspect-ratio: 1;
+	border-radius: var(--radius-xl);
+	object-fit: cover;
+	background: var(--bg-3);
+	border: 1px solid var(--border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 64px;
+	color: var(--text-3);
+	overflow: hidden;
+}
+
+.upload-cover-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.upload-progress {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.upload-progress-label {
+	display: flex;
+	justify-content: space-between;
+	font-size: 13px;
+	color: var(--text-2);
+}
+
+.upload-progress-bar {
+	height: 4px;
+	background: var(--border-2);
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.upload-progress-fill {
+	height: 100%;
+	background: var(--accent);
+	border-radius: 2px;
+	width: 0%;
+	transition: width 0.3s ease;
+}
+
+
+/* ═══════════════════════════════════════
+   ПРОФИЛЬ (ProfileView)
+   ═══════════════════════════════════════ */
+.profile-header {
+	display: flex;
+	align-items: flex-end;
+	gap: 28px;
+	margin-bottom: 40px;
+	padding-bottom: 32px;
+	border-bottom: 1px solid var(--border);
+}
+
+.profile-avatar {
+	width: 100px;
+	height: 100px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--surface);
+	border: 3px solid var(--border-2);
+	flex-shrink: 0;
+	font-size: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-3);
+}
+
+.profile-info {
+	flex: 1;
+}
+
+.profile-name {
+	font-family: var(--font-display);
+	font-size: 44px;
+	line-height: 0.95;
+	letter-spacing: 0.02em;
+	margin-bottom: 8px;
+}
+
+.profile-stats {
+	display: flex;
+	gap: 24px;
+	font-size: 14px;
+	color: var(--text-2);
+}
+
+.profile-stat-val {
+	color: var(--text);
+	font-weight: 500;
+}
+
+
+/* ═══════════════════════════════════════
+   ТОП-ЛИСТ (TopView)
+   ═══════════════════════════════════════ */
+.top-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.top-item {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	padding: 14px 16px;
+	border-radius: var(--radius-md);
+	transition: background var(--transition);
+	cursor: pointer;
+	text-decoration: none;
+	color: inherit;
+}
+
+.top-item:hover {
+	background: var(--surface);
+}
+
+.top-item--podium:nth-child(1) {
+	background: rgba(232, 255, 71, 0.06);
+}
+
+.top-item--podium:nth-child(2) {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.top-item--podium:nth-child(3) {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.top-rank {
+	font-family: var(--font-display);
+	font-size: 22px;
+	color: var(--text-3);
+	width: 36px;
+	text-align: center;
+	flex-shrink: 0;
+}
+
+.top-rank--1 {
+	color: var(--accent);
+}
+
+.top-rank--2 {
+	color: #c0c0c0;
+}
+
+.top-rank--3 {
+	color: #cd7f32;
+}
+
+.top-cover {
+	width: 48px;
+	height: 48px;
+	border-radius: var(--radius-sm);
+	object-fit: cover;
+	background: var(--bg-3);
+	flex-shrink: 0;
+}
+
+.top-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.top-title {
+	font-size: 15px;
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.top-author {
+	font-size: 13px;
+	color: var(--text-2);
+}
+
+.top-score {
+	font-family: var(--font-display);
+	font-size: 28px;
+	color: var(--accent);
+	letter-spacing: 0.02em;
+	flex-shrink: 0;
+}
+
+
+/* ═══════════════════════════════════════
+   СКЕЛЕТОН-ЗАГРУЗКА
+   ═══════════════════════════════════════ */
+@keyframes shimmer {
+	0% {
+		background-position: -400px 0;
+	}
+
+	100% {
+		background-position: 400px 0;
+	}
+}
+
+.skeleton {
+	background: linear-gradient(90deg,
+			var(--surface) 25%,
+			var(--surface-2) 50%,
+			var(--surface) 75%);
+	background-size: 800px 100%;
+	animation: shimmer 1.2s infinite;
+	border-radius: var(--radius-sm);
+}
+
+.skeleton-cover {
+	width: 100%;
+	aspect-ratio: 1;
+	border-radius: var(--radius-lg);
+}
+
+.skeleton-line {
+	height: 14px;
+	margin-bottom: 8px;
+}
+
+.skeleton-line--short {
+	width: 60%;
+}
+
+.skeleton-line--med {
+	width: 80%;
+}
+
+
+/* ═══════════════════════════════════════
+   АДАПТИВ КОМПОНЕНТОВ
+   ═══════════════════════════════════════ */
+@media (max-width: 860px) {
+	.track-page {
+		grid-template-columns: 1fr;
+	}
+
+	.track-sidebar {
+		position: static;
+		max-width: 400px;
+		margin: 0 auto;
+		width: 100%;
+	}
+
+	.upload-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.upload-preview {
+		position: static;
+	}
+}
+
+@media (max-width: 560px) {
+	.tracks-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.profile-header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
+
+@media (max-width: 380px) {
+	.tracks-grid {
+		grid-template-columns: 1fr;
+	}
+}
