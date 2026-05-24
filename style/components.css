@@ -58,7 +58,7 @@
 	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
 	overflow: hidden;
-	transition: border-color var(--transition), transform 0.2s ease;
+	transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 	cursor: pointer;
 	text-decoration: none;
 	color: inherit;
@@ -66,7 +66,8 @@
 
 .track-card:hover {
 	border-color: var(--border-2);
-	transform: translateY(-2px);
+	transform: translateY(-4px);
+	box-shadow: 0 12px 32px rgba(232, 255, 71, 0.08);
 }
 
 .track-card-cover {
@@ -260,10 +261,11 @@
 	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
-	padding: 16px;
+	padding: 20px;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 14px;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .player-controls {
@@ -361,10 +363,11 @@
 
 .track-info-title {
 	font-family: var(--font-display);
-	font-size: clamp(28px, 4vw, 52px);
-	line-height: 0.95;
+	font-size: clamp(32px, 4vw, 56px);
+	line-height: 0.92;
 	letter-spacing: 0.02em;
-	margin-bottom: 12px;
+	margin-bottom: 16px;
+	font-weight: 700;
 }
 
 .track-info-author {
@@ -395,23 +398,32 @@
 }
 
 .tag {
-	padding: 4px 12px;
+	padding: 6px 14px;
 	border-radius: 99px;
 	font-size: 12px;
-	background: var(--surface);
+	background: var(--surface-2);
 	border: 1px solid var(--border-2);
 	color: var(--text-2);
+	transition: all 0.15s ease;
+	cursor: default;
+}
+
+.tag:hover {
+	border-color: var(--accent);
+	background: var(--accent-dim);
+	color: var(--accent);
 }
 
 /* Итоговый балл трека */
 .track-total-score {
-	background: var(--surface);
-	border: 1px solid var(--border);
+	background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+	border: 1px solid var(--border-2);
 	border-radius: var(--radius-lg);
-	padding: 24px;
+	padding: 32px;
 	display: flex;
 	align-items: center;
-	gap: 24px;
+	gap: 32px;
+	box-shadow: 0 8px 24px rgba(232, 255, 71, 0.06);
 }
 
 .track-total-score-num {
@@ -493,10 +505,11 @@
 	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
-	padding: 24px;
+	padding: 32px;
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	gap: 24px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .rating-widget-title {
@@ -617,10 +630,11 @@
 	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-xl);
-	padding: 32px;
+	padding: 40px;
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	gap: 24px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .upload-preview {
@@ -687,9 +701,9 @@
 .profile-header {
 	display: flex;
 	align-items: flex-end;
-	gap: 28px;
-	margin-bottom: 40px;
-	padding-bottom: 32px;
+	gap: 32px;
+	margin-bottom: 48px;
+	padding-bottom: 40px;
 	border-bottom: 1px solid var(--border);
 }
 
@@ -714,10 +728,11 @@
 
 .profile-name {
 	font-family: var(--font-display);
-	font-size: 44px;
-	line-height: 0.95;
+	font-size: 52px;
+	line-height: 0.92;
 	letter-spacing: 0.02em;
-	margin-bottom: 8px;
+	margin-bottom: 12px;
+	font-weight: 700;
 }
 
 .profile-stats {
@@ -746,9 +761,9 @@
 	display: flex;
 	align-items: center;
 	gap: 20px;
-	padding: 14px 16px;
+	padding: 18px 20px;
 	border-radius: var(--radius-md);
-	transition: background var(--transition);
+	transition: background 0.15s ease, transform 0.15s ease;
 	cursor: pointer;
 	text-decoration: none;
 	color: inherit;
