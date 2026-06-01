@@ -5,6 +5,7 @@
 import { FeedView } from './views/FeedView.js';
 import { TrackView } from './views/TrackView.js';
 import { UploadView } from './views/UploadView.js';
+import { ProfileView } from './views/ProfileView.js';
 
 let currentView = null;
 
@@ -57,6 +58,13 @@ async function renderView(route, id) {
 				break;
 			case 'upload':
 				currentView = await UploadView();
+				break;
+			case 'profile':
+				if (!id) {
+					goToView('feed');
+					return;
+				}
+				currentView = await ProfileView(id);
 				break;
 			default:
 				goToView('feed');

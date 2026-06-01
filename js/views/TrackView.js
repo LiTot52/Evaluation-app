@@ -72,7 +72,7 @@ export async function TrackView(trackId) {
 				<!-- Track Info -->
 				<div class="track-info">
 					<h1 class="track-info-title">${track.title}</h1>
-					<div class="track-info-author">
+					<div class="track-info-author" style="cursor: pointer; user-select: none;" onclick="window.location.hash = '#profile/${track.uploadedBy}'">
 						<span>${track.uploadedByName || 'Unknown'}</span>
 					</div>
 					<p style="color: var(--text-2); line-height: 1.8; margin: 16px 0;">

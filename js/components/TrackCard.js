@@ -27,7 +27,9 @@ export function TrackCard(track) {
 			<div class="track-card-meta">
 				<div>
 					<h3 class="track-card-title">${title}</h3>
-					<p class="track-card-author">${artist}</p>
+					<p class="track-card-author" style="cursor: pointer;" onclick="event.stopPropagation(); window.location.hash = '#profile/${track.uploadedBy}'">
+						${artist}
+					</p>
 				</div>
 				<div class="score-badge ${rating === 0 ? 'score-badge--empty' : ''}">
 					<div class="score-badge-num">${rating > 0 ? rating.toFixed(1) : '—'}</div>
