@@ -1,17 +1,8 @@
-// ══════════════════════════════════════════
-//   BARS — firebase-config.js
-//   Инициализация Firebase и экспорт сервисов
-// ══════════════════════════════════════════
-
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getStorage, connectStorageEmulator } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
-// ─────────────────────────────────────────
-//  🔑 ТВОЙ КОНФИГ ИЗ FIREBASE CONSOLE
-//  Firebase Console → Project Settings → Your apps → SDK setup
-// ─────────────────────────────────────────
 const firebaseConfig = {
 	apiKey: "AIzaSyDEDlJjrkwM6mjEZsvsw8yjELTyLb3npyU",
 	authDomain: "rateform-6b428.firebaseapp.com",
@@ -22,18 +13,14 @@ const firebaseConfig = {
 	measurementId: "G-ZM83DXKSZC"
 };
 
-// ─────────────────────────────────────────
-//  Инициализация
-// ─────────────────────────────────────────
+
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// ─────────────────────────────────────────
-//  Настройки auth (язык ошибок на русском)
-// ─────────────────────────────────────────
+
 auth.languageCode = 'ru';
 
 // ─────────────────────────────────────────

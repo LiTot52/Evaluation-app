@@ -1,7 +1,3 @@
-// ══════════════════════════════════════════
-//   APP.JS — App Initialization & Auth
-// ══════════════════════════════════════════
-
 import {
 	currentUser,
 	onAuthChange,
@@ -13,35 +9,26 @@ import {
 } from './store.js';
 import { initRouter, goToView } from './router.js';
 
-// ─────────────────────────────────────────
-// INITIALIZATION
-// ─────────────────────────────────────────
+
 export async function initApp() {
 	console.log('🚀 Initializing app...');
 
-	// Set up auth listeners
 	onAuthChange(handleAuthChange);
 
-	// Initialize router
 	initRouter();
 
-	// Set up event listeners
 	setupEventListeners();
 
-	// Load tracks
 	await loadAllTracks();
 
 	console.log('✅ App initialized');
 }
 
-// ─────────────────────────────────────────
-// AUTH HANDLERS
-// ─────────────────────────────────────────
 async function handleAuthChange(user) {
 	console.log('Auth state changed:', user?.email || 'Not logged in');
 	updateHeaderUser(user);
 
-	// Redirect if trying to access upload without auth
+
 	const hash = window.location.hash.slice(1);
 	if (!user && hash === 'upload') {
 		openAuthModal();
@@ -74,9 +61,6 @@ function updateHeaderUser(user) {
 	}
 }
 
-// ─────────────────────────────────────────
-// MODAL HANDLERS
-// ─────────────────────────────────────────
 function openAuthModal() {
 	const modal = document.getElementById('auth-modal');
 	modal.classList.add('open');
@@ -150,9 +134,7 @@ async function handleLogout() {
 	}
 }
 
-// ─────────────────────────────────────────
-// UTILITY
-// ─────────────────────────────────────────
+
 export function showToast(message, type = 'success') {
 	const toast = document.getElementById('toast');
 	toast.textContent = message;
@@ -174,11 +156,9 @@ function formatError(code) {
 	return errors[code] || 'Ошибка авторизации';
 }
 
-// ─────────────────────────────────────────
-// EVENT LISTENERS
-// ─────────────────────────────────────────
+
 function setupEventListeners() {
-	// Auth modal
+
 	const modal = document.getElementById('auth-modal');
 	const modalClose = document.getElementById('modal-close');
 	const modalOverlay = modal;
@@ -188,7 +168,7 @@ function setupEventListeners() {
 		if (e.target === modalOverlay) closeAuthModal();
 	});
 
-	// Tab switching
+
 	const tabs = document.querySelectorAll('.modal-tab');
 	tabs.forEach(tab => {
 		tab.addEventListener('click', () => {
@@ -209,19 +189,19 @@ function setupEventListeners() {
 		});
 	});
 
-	// Form submissions
+
 	document.getElementById('form-login').addEventListener('submit', handleLogin);
 	document.getElementById('form-register').addEventListener('submit', handleRegister);
 	document.getElementById('btn-google').addEventListener('click', handleGoogleLogin);
 
-	// Navigation
+
 	const navLinks = document.querySelectorAll('[data-route]');
 	navLinks.forEach(link => {
 		link.addEventListener('click', (e) => {
 			e.preventDefault();
 			const route = link.dataset.route;
 
-			// Check if upload requires auth
+
 			if (route === 'upload' && !currentUser) {
 				openAuthModal();
 				return;
@@ -231,7 +211,7 @@ function setupEventListeners() {
 		});
 	});
 
-	// Update active nav link
+
 	window.addEventListener('hashchange', () => {
 		const hash = window.location.hash.slice(1).split('/')[0];
 		navLinks.forEach(link => {
@@ -240,7 +220,7 @@ function setupEventListeners() {
 	});
 }
 
-// Start app when DOM is ready
+
 if (document.readyState === 'loading') {
 	document.addEventListener('DOMContentLoaded', initApp);
 } else {

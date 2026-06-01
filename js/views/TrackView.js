@@ -1,7 +1,3 @@
-// ══════════════════════════════════════════
-//   TRACKVIEW.JS — Track Detail with Player
-// ══════════════════════════════════════════
-
 import { getTrackById } from '../store.js';
 import { RatingWidget } from '../components/RatingWidget.js';
 import { showToast } from '../app.js';
@@ -10,7 +6,6 @@ export async function TrackView(trackId) {
 	const container = document.createElement('div');
 	container.className = 'page';
 
-	// Load track
 	const track = await getTrackById(trackId);
 
 	if (!track) {
@@ -23,7 +18,6 @@ export async function TrackView(trackId) {
 		return { element: container };
 	}
 
-	// Create layout
 	container.innerHTML = `
 		<div class="track-page">
 			<!-- LEFT SIDEBAR -->
@@ -99,7 +93,6 @@ export async function TrackView(trackId) {
 		</div>
 	`;
 
-	// Audio player setup
 	const audio = new Audio(track.audioUrl);
 	const playBtn = container.querySelector('#play-btn');
 	const progressBar = container.querySelector('#progress-bar');
@@ -110,7 +103,6 @@ export async function TrackView(trackId) {
 
 	audio.volume = 1;
 
-	// Format time
 	const formatTime = (seconds) => {
 		if (!seconds) return '0:00';
 		const mins = Math.floor(seconds / 60);
@@ -118,7 +110,6 @@ export async function TrackView(trackId) {
 		return `${mins}:${secs.toString().padStart(2, '0')}`;
 	};
 
-	// Play/Pause
 	playBtn.addEventListener('click', () => {
 		if (audio.paused) {
 			audio.play();
@@ -129,40 +120,33 @@ export async function TrackView(trackId) {
 		}
 	});
 
-	// Update progress
 	audio.addEventListener('timeupdate', () => {
 		const percent = (audio.currentTime / audio.duration) * 100;
 		progressFill.style.width = percent + '%';
 		currentTimeEl.textContent = formatTime(audio.currentTime);
 	});
 
-	// Load metadata
 	audio.addEventListener('loadedmetadata', () => {
 		durationEl.textContent = formatTime(audio.duration);
 	});
 
-	// Click on progress bar
 	progressBar.addEventListener('click', (e) => {
 		const rect = progressBar.getBoundingClientRect();
 		const percent = (e.clientX - rect.left) / rect.width;
 		audio.currentTime = percent * audio.duration;
 	});
 
-	// Volume
 	volumeSlider.addEventListener('input', (e) => {
 		audio.volume = e.target.value / 100;
 	});
 
-	// End of audio
 	audio.addEventListener('ended', () => {
 		playBtn.textContent = '▶';
 	});
 
-	// Rating widget
 	const ratingContainer = container.querySelector('#rating-widget-container');
 	ratingContainer.appendChild(await RatingWidget(trackId));
 
-	// Auto-update stats when page gains focus (in case other user rated)
 	const observer = new PeriodicReload(trackId, container);
 
 	return {
@@ -174,7 +158,6 @@ export async function TrackView(trackId) {
 	};
 }
 
-// Poll for updates every 5 seconds
 class PeriodicReload {
 	constructor(trackId, container) {
 		this.trackId = trackId;

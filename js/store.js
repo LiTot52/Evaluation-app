@@ -1,7 +1,3 @@
-// ══════════════════════════════════════════
-//   STORE.JS — State Management & Firestore
-// ══════════════════════════════════════════
-
 import { auth, db, storage } from './firebase-config.js';
 import {
 	signInWithEmailAndPassword,
@@ -31,16 +27,10 @@ import {
 	getDownloadURL
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
-// ─────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────
 export let currentUser = null;
 export let tracks = [];
 let listeners = [];
 
-// ─────────────────────────────────────────
-// AUTH
-// ─────────────────────────────────────────
 export async function registerUser(email, username, password) {
 	const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 	const uid = userCredential.user.uid;
@@ -98,9 +88,6 @@ export function onAuthChange(callback) {
 	});
 }
 
-// ─────────────────────────────────────────
-// TRACKS
-// ─────────────────────────────────────────
 export async function loadAllTracks() {
 	try {
 		const snapshot = await getDocs(collection(db, 'tracks'));
@@ -141,32 +128,25 @@ export async function getTrackById(trackId) {
 	}
 }
 
-// ─────────────────────────────────────────
-// UPLOAD
-// ─────────────────────────────────────────
 export async function uploadTrack(title, artist, genre, description, audioFile, coverFile) {
 	if (!currentUser) throw new Error('User not authenticated');
 
 	try {
 		const trackId = `track_${Date.now()}`;
 
-		// Upload audio
 		const audioRef = ref(storage, `tracks/${trackId}/audio`);
 		await uploadBytes(audioRef, audioFile);
 		const audioUrl = await getDownloadURL(audioRef);
 
-		// Upload cover
 		const coverRef = ref(storage, `tracks/${trackId}/cover`);
 		await uploadBytes(coverRef, coverFile);
 		const coverUrl = await getDownloadURL(coverRef);
 
-		// Get duration (basic, store as 0 for now - could be calculated on client)
 		const audio = new Audio(audioUrl);
 		const duration = await new Promise(resolve => {
 			audio.onloadedmetadata = () => resolve(Math.round(audio.duration));
 		});
 
-		// Create track document
 		const trackData = {
 			title,
 			artist,
@@ -191,7 +171,6 @@ export async function uploadTrack(title, artist, genre, description, audioFile, 
 
 		const docRef = await addDoc(collection(db, 'tracks'), trackData);
 
-		// Update user uploads count
 		await updateDoc(doc(db, 'users', currentUser.uid), {
 			uploadsCount: (await getDoc(doc(db, 'users', currentUser.uid))).data().uploadsCount + 1
 		});
@@ -203,9 +182,6 @@ export async function uploadTrack(title, artist, genre, description, audioFile, 
 	}
 }
 
-// ─────────────────────────────────────────
-// RATING
-// ─────────────────────────────────────────
 export async function rateTrack(trackId, ratings) {
 	if (!currentUser) throw new Error('User not authenticated');
 
@@ -227,10 +203,8 @@ export async function rateTrack(trackId, ratings) {
 			updatedAt: new Date()
 		});
 
-		// Recalculate track average
 		await recalculateTrackRating(trackId);
 
-		// Update user ratings count
 		const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
 		const ratingsCount = userDoc.data().ratingsCount || 0;
 		await updateDoc(doc(db, 'users', currentUser.uid), {
@@ -306,9 +280,6 @@ async function recalculateTrackRating(trackId) {
 	}
 }
 
-// ─────────────────────────────────────────
-// LISTENERS
-// ─────────────────────────────────────────
 export function subscribe(callback) {
 	listeners.push(callback);
 	return () => {

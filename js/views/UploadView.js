@@ -1,7 +1,3 @@
-// ══════════════════════════════════════════
-//   UPLOADVIEW.JS — Track Upload Form
-// ══════════════════════════════════════════
-
 import { currentUser, uploadTrack } from '../store.js';
 import { showToast } from '../app.js';
 import { goToView } from '../router.js';
@@ -103,9 +99,8 @@ export async function UploadView() {
 
 	renderForm();
 
-	// File handlers
 	const setupFileHandlers = () => {
-		// Audio file
+
 		const audioDrop = container.querySelector('#audio-drop');
 		const audioInput = container.querySelector('#audio-input');
 		const audioHint = container.querySelector('#audio-hint');
@@ -131,7 +126,6 @@ export async function UploadView() {
 			if (files[0]) handleAudioSelect(files[0]);
 		});
 
-		// Cover file
 		const coverDrop = container.querySelector('#cover-drop');
 		const coverInput = container.querySelector('#cover-input');
 		const coverHint = container.querySelector('#cover-hint');
@@ -179,7 +173,6 @@ export async function UploadView() {
 		coverHint.textContent = `✓ Выбран: ${file.name}`;
 		coverHint.style.color = 'var(--accent)';
 
-		// Show preview
 		const reader = new FileReader();
 		reader.onload = (e) => {
 			const preview = container.querySelector('#cover-preview');
@@ -192,7 +185,6 @@ export async function UploadView() {
 
 	setupFileHandlers();
 
-	// Form submission
 	const form = container.querySelector('#upload-form');
 	form.addEventListener('submit', async (e) => {
 		e.preventDefault();
@@ -208,13 +200,13 @@ export async function UploadView() {
 		const description = container.querySelector('#track-description').value;
 
 		try {
-			// Show progress
+
 			const progress = container.querySelector('#upload-progress');
 			progress.style.display = 'block';
 			const submitBtn = form.querySelector('button[type="submit"]');
 			submitBtn.disabled = true;
 
-			// Simulate progress
+
 			let currentProgress = 0;
 			const progressInterval = setInterval(() => {
 				if (currentProgress < 90) {
@@ -224,7 +216,6 @@ export async function UploadView() {
 				}
 			}, 500);
 
-			// Upload
 			const result = await uploadTrack(title, artist, genre, description, selectedAudioFile, selectedCoverFile);
 
 			clearInterval(progressInterval);
@@ -232,7 +223,6 @@ export async function UploadView() {
 
 			showToast('Трек успешно загружен! 🎉', 'success');
 
-			// Redirect to track page
 			setTimeout(() => {
 				goToView('track', result.id);
 			}, 1500);

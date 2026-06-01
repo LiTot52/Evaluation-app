@@ -1,6 +1,4 @@
-// ══════════════════════════════════════════
-//   PROFILEVIEW.JS — User Profile & Their Tracks
-// ══════════════════════════════════════════
+
 
 import { db, auth } from '../firebase-config.js';
 import { collection, query, where, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -12,7 +10,7 @@ export async function ProfileView(userId) {
 	container.className = 'page';
 
 	try {
-		// Load user data
+
 		const userDoc = await getDoc(doc(db, 'users', userId));
 		if (!userDoc.exists()) {
 			container.innerHTML = `
@@ -26,7 +24,7 @@ export async function ProfileView(userId) {
 
 		const user = { ...userDoc.data(), id: userDoc.id };
 
-		// Load user's tracks
+
 		const tracksQuery = query(collection(db, 'tracks'), where('uploadedBy', '==', userId));
 		const tracksSnapshot = await getDocs(tracksQuery);
 		const userTracks = tracksSnapshot.docs.map(doc => ({
@@ -34,7 +32,7 @@ export async function ProfileView(userId) {
 			id: doc.id
 		})).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-		// Calculate stats
+
 		const totalRatingsReceived = userTracks.reduce((sum, track) => sum + (track.totalRatings || 0), 0);
 		const avgRating = userTracks.length > 0
 			? (userTracks.reduce((sum, track) => sum + (track.averageRating || 0), 0) / userTracks.length).toFixed(1)
@@ -94,7 +92,6 @@ export async function ProfileView(userId) {
 			</div>
 		`;
 
-		// Render tracks
 		if (userTracks.length > 0) {
 			const grid = container.querySelector('#tracks-grid');
 			userTracks.forEach(track => {

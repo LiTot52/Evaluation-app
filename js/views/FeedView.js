@@ -1,7 +1,3 @@
-// ══════════════════════════════════════════
-//   FEEDVIEW.JS — Track Grid Feed
-// ══════════════════════════════════════════
-
 import { tracks, subscribeToTracks } from '../store.js';
 import { TrackCard } from '../components/TrackCard.js';
 
@@ -40,10 +36,8 @@ export async function FeedView() {
 		});
 	};
 
-	// Initial render
 	renderFeed();
 
-	// Subscribe to real-time updates
 	unsubscribe = subscribeToTracks(renderFeed);
 
 	return {
