@@ -55,9 +55,9 @@ export async function TrackView(trackId) {
 				<!-- Criteria Breakdown -->
 				<div class="criteria-breakdown" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px;">
 					<div style="font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-2); margin-bottom: 16px;">Разбивка по критериям</div>
-					${['beat', 'vocals', 'production', 'flow'].map(criterion => `
+					${['rhymes', 'structure', 'style', 'charisma', 'vibe'].map(criterion => `
 						<div class="criteria-row">
-							<div class="criteria-label">${{beat: '🎵 Beat', vocals: '🎤 Vocals', production: '🎛️ Production', flow: '🔥 Flow'}[criterion]}</div>
+							<div class="criteria-label">${{ rhymes: '✍️ Рифмы', structure: '🎼 Структура', style: '🎨 Стиль', charisma: '⚡ Харизма', vibe: '🌊 Вайб' }[criterion]}</div>
 							<div class="criteria-bar-wrap">
 								<div class="criteria-bar-fill" style="width: ${(track.ratingBreakdown?.[criterion] || 0) * 10}%"></div>
 							</div>

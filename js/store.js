@@ -179,10 +179,11 @@ export async function uploadTrack(title, artist, genre, description, audioFile, 
 			averageRating: 0,
 			totalRatings: 0,
 			ratingBreakdown: {
-				beat: 0,
-				vocals: 0,
-				production: 0,
-				flow: 0
+				rhymes: 0,
+				structure: 0,
+				style: 0,
+				charisma: 0,
+				vibe: 0
 			},
 			duration,
 			createdAt: new Date()
@@ -210,16 +211,17 @@ export async function rateTrack(trackId, ratings) {
 
 	try {
 		const ratingId = `${currentUser.uid}_${trackId}`;
-		const overallRating = (ratings.beat + ratings.vocals + ratings.production + ratings.flow) / 4;
+		const overallRating = (ratings.rhymes + ratings.structure + ratings.style + ratings.charisma + ratings.vibe) / 5;
 
 		// Save rating
 		await setDoc(doc(db, 'ratings', ratingId), {
 			trackId,
 			userId: currentUser.uid,
-			beat: ratings.beat,
-			vocals: ratings.vocals,
-			production: ratings.production,
-			flow: ratings.flow,
+			rhymes: ratings.rhymes,
+			structure: ratings.structure,
+			style: ratings.style,
+			charisma: ratings.charisma,
+			vibe: ratings.vibe,
 			overallRating,
 			createdAt: new Date(),
 			updatedAt: new Date()
@@ -268,10 +270,11 @@ async function recalculateTrackRating(trackId) {
 				averageRating: 0,
 				totalRatings: 0,
 				ratingBreakdown: {
-					beat: 0,
-					vocals: 0,
-					production: 0,
-					flow: 0
+					rhymes: 0,
+					structure: 0,
+					style: 0,
+					charisma: 0,
+					vibe: 0
 				}
 			});
 			return;
@@ -280,20 +283,22 @@ async function recalculateTrackRating(trackId) {
 		const ratings = ratingsSnapshot.docs.map(doc => doc.data());
 		const totalRatings = ratings.length;
 
-		const avgBeat = ratings.reduce((sum, r) => sum + r.beat, 0) / totalRatings;
-		const avgVocals = ratings.reduce((sum, r) => sum + r.vocals, 0) / totalRatings;
-		const avgProduction = ratings.reduce((sum, r) => sum + r.production, 0) / totalRatings;
-		const avgFlow = ratings.reduce((sum, r) => sum + r.flow, 0) / totalRatings;
-		const avgRating = (avgBeat + avgVocals + avgProduction + avgFlow) / 4;
+		const avgRhymes = ratings.reduce((sum, r) => sum + r.rhymes, 0) / totalRatings;
+		const avgStructure = ratings.reduce((sum, r) => sum + r.structure, 0) / totalRatings;
+		const avgStyle = ratings.reduce((sum, r) => sum + r.style, 0) / totalRatings;
+		const avgCharisma = ratings.reduce((sum, r) => sum + r.charisma, 0) / totalRatings;
+		const avgVibe = ratings.reduce((sum, r) => sum + r.vibe, 0) / totalRatings;
+		const avgRating = (avgRhymes + avgStructure + avgStyle + avgCharisma + avgVibe) / 5;
 
 		await updateDoc(doc(db, 'tracks', trackId), {
 			averageRating: Math.round(avgRating * 10) / 10,
 			totalRatings,
 			ratingBreakdown: {
-				beat: Math.round(avgBeat * 10) / 10,
-				vocals: Math.round(avgVocals * 10) / 10,
-				production: Math.round(avgProduction * 10) / 10,
-				flow: Math.round(avgFlow * 10) / 10
+				rhymes: Math.round(avgRhymes * 10) / 10,
+				structure: Math.round(avgStructure * 10) / 10,
+				style: Math.round(avgStyle * 10) / 10,
+				charisma: Math.round(avgCharisma * 10) / 10,
+				vibe: Math.round(avgVibe * 10) / 10
 			}
 		});
 	} catch (error) {

@@ -24,17 +24,19 @@ export async function RatingWidget(trackId) {
 	const existingRating = await getCurrentRating(trackId);
 
 	const criteria = [
-		{ name: 'Beat', key: 'beat', label: 'Ритм и бит' },
-		{ name: 'Vocals', key: 'vocals', label: 'Вокал' },
-		{ name: 'Production', key: 'production', label: 'Продакшн' },
-		{ name: 'Flow', key: 'flow', label: 'Флоу' }
+		{ name: 'Rhymes', key: 'rhymes', label: 'Рифмы/образы' },
+		{ name: 'Structure', key: 'structure', label: 'Структура/ритмика' },
+		{ name: 'Style', key: 'style', label: 'Реализация стиля' },
+		{ name: 'Charisma', key: 'charisma', label: 'Индивидуальность/харизма' },
+		{ name: 'Vibe', key: 'vibe', label: 'Вайб' }
 	];
 
 	const ratings = {
-		beat: existingRating?.beat || 5,
-		vocals: existingRating?.vocals || 5,
-		production: existingRating?.production || 5,
-		flow: existingRating?.flow || 5
+		rhymes: existingRating?.rhymes || 5,
+		structure: existingRating?.structure || 5,
+		style: existingRating?.style || 5,
+		charisma: existingRating?.charisma || 5,
+		vibe: existingRating?.vibe || 5
 	};
 
 	const updateOverall = () => {
