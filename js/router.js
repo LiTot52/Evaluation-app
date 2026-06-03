@@ -1,107 +1,62 @@
 // ══════════════════════════════════════════
-//   ROUTER.JS — Hash-Based Routing
+//   ROUTER.JS
 // ══════════════════════════════════════════
 
 import { FeedView } from './views/FeedView.js';
 import { TrackView } from './views/TrackView.js';
 import { UploadView } from './views/UploadView.js';
+import { TopView } from './views/TopView.js';
 import { ProfileView } from './views/ProfileView.js';
 
-let currentView = null;
+let _cleanup = null;
 
-// ─────────────────────────────────────────
-// ROUTER INIT
-// ─────────────────────────────────────────
 export function initRouter() {
-	window.addEventListener('hashchange', handleRouteChange);
-	handleRouteChange();
+	window.addEventListener('hashchange', _route);
+	_route();
 }
 
-function handleRouteChange() {
+async function _route() {
 	const hash = window.location.hash.slice(1) || 'feed';
 	const [route, id] = hash.split('/');
 
-	console.log('🔀 Route changed:', route, id);
-	renderView(route, id);
-}
+	document.querySelectorAll('[data-route]').forEach(el =>
+		el.classList.toggle('active', el.dataset.route === route)
+	);
 
-// ─────────────────────────────────────────
-// VIEW RENDERING
-// ─────────────────────────────────────────
-async function renderView(route, id) {
 	const app = document.getElementById('app');
-	const initialLoader = document.getElementById('initial-loader');
-
-	// Remove initial loader
-	if (initialLoader && initialLoader.parentNode === app) {
-		initialLoader.remove();
-	}
-
-	// Show loader while rendering
+	document.getElementById('initial-loader')?.remove();
 	app.innerHTML = '<div class="loader"><div class="loader-spinner"></div></div>';
 
+	_cleanup?.();
+	_cleanup = null;
+
 	try {
-		if (currentView) {
-			currentView.cleanup?.();
-		}
-
+		let result;
 		switch (route) {
-			case 'feed':
-				currentView = await FeedView();
-				break;
-			case 'track':
-				if (!id) {
-					goToView('feed');
-					return;
-				}
-				currentView = await TrackView(id);
-				break;
-			case 'upload':
-				currentView = await UploadView();
-				break;
-			case 'profile':
-				if (!id) {
-					goToView('feed');
-					return;
-				}
-				currentView = await ProfileView(id);
-				break;
-			default:
-				goToView('feed');
-				return;
+			case 'track': result = id ? await TrackView(id) : (goToView('feed'), null); break;
+			case 'upload': result = await UploadView(); break;
+			case 'top': result = await TopView(); break;
+			case 'profile': result = id ? await ProfileView(id) : (goToView('feed'), null); break;
+			default: result = await FeedView(); break;
 		}
-
-		if (currentView) {
-			app.innerHTML = '';
-			app.appendChild(currentView.element || currentView);
-		}
-	} catch (error) {
-		console.error('Error rendering view:', error);
+		if (!result) return;
+		app.innerHTML = '';
+		app.appendChild(result.element ?? result);
+		_cleanup = result.cleanup ?? null;
+	} catch (err) {
+		console.error('Router error:', err);
 		app.innerHTML = `
-			<div class="page" style="text-align: center; padding-top: 100px;">
-				<h2>Ошибка загрузки страницы</h2>
-				<p>${error.message}</p>
-				<button class="btn btn--primary" onclick="window.location.hash = '#feed'">
-					Вернуться на главную
-				</button>
-			</div>
-		`;
+      <div class="page" style="text-align:center;padding-top:100px">
+        <p style="color:var(--text-2);margin-bottom:24px">${err.message}</p>
+        <a class="btn btn--primary" href="#feed">На главную</a>
+      </div>`;
 	}
 }
 
-// ─────────────────────────────────────────
-// NAVIGATION
-// ─────────────────────────────────────────
 export function goToView(route, id = null) {
-	if (id) {
-		window.location.hash = `#${route}/${id}`;
-	} else {
-		window.location.hash = `#${route}`;
-	}
+	window.location.hash = id ? `#${route}/${id}` : `#${route}`;
 }
 
 export function getCurrentRoute() {
 	return window.location.hash.slice(1).split('/')[0] || 'feed';
 }
-
-console.log('%c✅ Router initialized', 'color:#e8ff47; font-weight:bold');

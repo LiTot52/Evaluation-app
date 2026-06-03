@@ -1,53 +1,53 @@
 // ══════════════════════════════════════════
-//   TRACKCARD.JS — Reusable Track Card
+//   TRACKCARD.JS
 // ══════════════════════════════════════════
 
 import { goToView } from '../router.js';
 
 export function TrackCard(track) {
-	const element = document.createElement('a');
-	element.className = 'track-card';
-	element.href = `#track/${track.id}`;
+	const el = document.createElement('a');
+	el.className = 'track-card';
+	el.href = `#track/${track.id}`;
 
-	const coverUrl = track.coverUrl || '';
-	const title = track.title || 'Без названия';
-	const artist = track.artist || 'Unknown';
 	const rating = track.averageRating || 0;
-	const totalRatings = track.totalRatings || 0;
+	const hasRating = track.totalRatings > 0;
 
-	element.innerHTML = `
-		<div class="track-card-cover-placeholder" ${coverUrl ? `style="background-image: url('${coverUrl}'); background-size: cover;"` : ''}>
-			${!coverUrl ? '🎵' : ''}
-			<div class="track-card-play-overlay">
-				<button class="play-btn-circle" title="Слушать">▶</button>
-			</div>
-		</div>
+	el.innerHTML = `
+    <div class="track-card-cover-placeholder"
+      ${track.coverUrl ? `style="background:url('${track.coverUrl}') center/cover;background-size:cover;"` : ''}>
+      ${track.coverUrl ? '' : '🎵'}
+      <div class="track-card-play-overlay">
+        <button class="play-btn-circle" aria-label="Слушать">▶</button>
+      </div>
+    </div>
+    <div class="track-card-body">
+      <div class="track-card-meta">
+        <div style="min-width:0">
+          <h3 class="track-card-title">${track.title || 'Без названия'}</h3>
+          <a class="track-card-author"
+             href="#profile/${track.uploadedBy}"
+             onclick="event.stopPropagation()">
+            <div class="ava">${(track.uploadedByName || track.artist || '?')[0]?.toUpperCase()}</div>
+            ${track.uploadedByName || track.artist || 'Неизвестно'}
+          </a>
+        </div>
+        <div class="score-badge ${!hasRating ? 'score-badge--empty' : ''}">
+          <div class="score-badge-num">${hasRating ? rating.toFixed(1) : '—'}</div>
+          <div class="score-badge-label">${hasRating ? track.totalRatings : 'нет'}</div>
+        </div>
+      </div>
+      <div class="track-card-stats">
+        ${track.genre ? `<span>🎸 ${track.genre}</span>` : ''}
+        <span>⭐ ${track.totalRatings || 0}</span>
+      </div>
+    </div>`;
 
-		<div class="track-card-body">
-			<div class="track-card-meta">
-				<div>
-					<h3 class="track-card-title">${title}</h3>
-					<p class="track-card-author" style="cursor: pointer;" onclick="event.stopPropagation(); window.location.hash = '#profile/${track.uploadedBy}'">
-						${artist}
-					</p>
-				</div>
-				<div class="score-badge ${rating === 0 ? 'score-badge--empty' : ''}">
-					<div class="score-badge-num">${rating > 0 ? rating.toFixed(1) : '—'}</div>
-					<div class="score-badge-label">${totalRatings > 0 ? totalRatings : 'Нет'}</div>
-				</div>
-			</div>
-
-			<div class="track-card-stats">
-				<span title="Оценок">⭐ ${totalRatings}</span>
-				<span title="Жанр">🎸 ${track.genre || 'N/A'}</span>
-			</div>
-		</div>
-	`;
-
-	element.addEventListener('click', (e) => {
+	el.addEventListener('click', e => {
+		// Не перехватывать клик по ссылке на профиль
+		if (e.target.closest('.track-card-author')) return;
 		e.preventDefault();
 		goToView('track', track.id);
 	});
 
-	return element;
+	return el;
 }

@@ -1,185 +1,174 @@
-import { db, auth } from '../firebase-config.js';
-import {
-	doc, getDoc, collection, query,
-	where, orderBy, getDocs
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+// ══════════════════════════════════════════
+//   PROFILEVIEW.JS — Профиль пользователя
+// ══════════════════════════════════════════
 
-export async function renderProfileView(container, userId) {
-	// Если userId не передан — показываем профиль текущего юзера
-	const uid = userId || auth.currentUser?.uid;
+import { getUserById, getTracksByUser, currentUser, CRITERIA } from '../store.js';
+import { TrackCard } from '../components/TrackCard.js';
 
-	if (!uid) {
+export async function ProfileView(userId) {
+	const container = document.createElement('div');
+	container.className = 'page';
+
+	// Загружаем данные параллельно
+	const [user, userTracks] = await Promise.all([
+		getUserById(userId),
+		getTracksByUser(userId),
+	]);
+
+	if (!user) {
 		container.innerHTML = `
-      <div class="empty-state">
-        <p class="empty-state__text">Войдите, чтобы видеть профиль</p>
+      <div class="empty-state" style="padding-top:200px">
+        <div class="empty-state-icon">👤</div>
+        <h2 class="empty-state-title">Профиль не найден</h2>
+        <a href="#feed" class="btn btn--ghost" style="margin-top:8px">На главную</a>
       </div>`;
-		return;
+		return { element: container };
 	}
 
-	// Скелетон-заглушка пока грузим данные
+	// ── Считаем статистику ──
+	const tracksWithRatings = userTracks.filter(t => t.totalRatings > 0);
+	const avgRating = tracksWithRatings.length
+		? (tracksWithRatings.reduce((s, t) => s + t.averageRating, 0) / tracksWithRatings.length).toFixed(1)
+		: '—';
+	const totalReceivedRatings = userTracks.reduce((s, t) => s + (t.totalRatings || 0), 0);
+
+	// Лучший трек
+	const bestTrack = tracksWithRatings.length
+		? tracksWithRatings.reduce((best, t) => t.averageRating > best.averageRating ? t : best)
+		: null;
+
+	// Разбивка по критериям — среднее по всем трекам
+	const criteriaAvg = {};
+	if (tracksWithRatings.length) {
+		CRITERIA.forEach(({ key }) => {
+			const vals = tracksWithRatings.map(t => t.ratingBreakdown?.[key] || 0);
+			criteriaAvg[key] = (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1);
+		});
+	}
+
+	const isOwnProfile = currentUser?.uid === userId;
+	const name = user.username || user.email?.split('@')[0] || 'Без имени';
+	const letter = name[0]?.toUpperCase() || '?';
+
+	const avatarHtml = user.avatar
+		? `<img src="${user.avatar}" alt="${name}" class="profile-avatar">`
+		: `<div class="profile-avatar profile-avatar--letter">${letter}</div>`;
+
+	// ── Критерии HTML ──
+	const criteriaHtml = tracksWithRatings.length ? `
+    <div class="profile-section">
+      <div class="section-label">Средние оценки по критериям</div>
+      <div class="criteria-breakdown">
+        ${CRITERIA.map(({ key, label }) => `
+          <div class="criteria-row">
+            <div class="criteria-label">${label}</div>
+            <div class="criteria-bar-wrap">
+              <div class="criteria-bar-fill" style="width:${(criteriaAvg[key] || 0) * 10}%"></div>
+            </div>
+            <div class="criteria-val">${criteriaAvg[key] || '—'}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : '';
+
+	const bestTrackHtml = bestTrack ? `
+    <div class="profile-best">
+      <div class="section-label" style="margin-bottom:12px">Лучший трек</div>
+      <a href="#track/${bestTrack.id}" class="profile-best-card">
+        <div class="profile-best-cover" style="${bestTrack.coverUrl ? `background:url('${bestTrack.coverUrl}') center/cover` : ''}">
+          ${bestTrack.coverUrl ? '' : '🎵'}
+        </div>
+        <div class="profile-best-info">
+          <div class="profile-best-title">${bestTrack.title}</div>
+          <div class="profile-best-score">
+            <span class="score-badge-num">${bestTrack.averageRating?.toFixed(1)}</span>
+            <span style="font-size:12px;color:var(--text-3)">/10</span>
+          </div>
+        </div>
+      </a>
+    </div>` : '';
+
 	container.innerHTML = `
-    <div class="profile-page">
-      <div class="profile-header skeleton-box" style="height:260px"></div>
-      <div class="profile-stats skeleton-box" style="height:100px;margin-top:16px"></div>
-      <div class="profile-tracks__grid" style="margin-top:24px">
-        ${Array(4).fill('<div class="track-card skeleton-box" style="height:200px"></div>').join('')}
+    <div>
+      <!-- ШАПКА ПРОФИЛЯ -->
+      <div class="profile-header">
+        ${avatarHtml}
+        <div class="profile-info">
+          <h1 class="profile-name">${name}</h1>
+          <div class="profile-stats">
+            <span><span class="profile-stat-val">${userTracks.length}</span> треков</span>
+            <span><span class="profile-stat-val">${totalReceivedRatings}</span> оценок получено</span>
+            <span>Средний рейтинг: <span class="profile-stat-val">${avgRating}</span></span>
+          </div>
+          ${isOwnProfile ? `
+            <div style="margin-top:16px">
+              <a href="#upload" class="btn btn--primary btn--sm">+ Загрузить трек</a>
+            </div>` : ''}
+        </div>
+
+        <!-- Мини-статы -->
+        <div class="profile-score-block">
+          <div class="profile-score-num">${avgRating}</div>
+          <div class="profile-score-label">средний балл</div>
+        </div>
+      </div>
+
+      <div class="profile-body">
+        <!-- ЛЕВАЯ КОЛОНКА: статистика -->
+        <div class="profile-sidebar">
+
+          <!-- Статс-карточки -->
+          <div class="profile-section">
+            <div class="section-label">Статистика</div>
+            <div class="profile-stat-cards">
+              <div class="profile-stat-card">
+                <div class="profile-stat-card-num">${userTracks.length}</div>
+                <div class="profile-stat-card-label">Треков</div>
+              </div>
+              <div class="profile-stat-card">
+                <div class="profile-stat-card-num">${totalReceivedRatings}</div>
+                <div class="profile-stat-card-label">Оценок получено</div>
+              </div>
+              <div class="profile-stat-card profile-stat-card--accent">
+                <div class="profile-stat-card-num">${avgRating}</div>
+                <div class="profile-stat-card-label">Средний балл</div>
+              </div>
+              <div class="profile-stat-card">
+                <div class="profile-stat-card-num">${tracksWithRatings.length}</div>
+                <div class="profile-stat-card-label">Треков с оценками</div>
+              </div>
+            </div>
+          </div>
+
+          ${criteriaHtml}
+          ${bestTrackHtml}
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА: треки -->
+        <div class="profile-tracks">
+          <div class="section-label" style="margin-bottom:16px">
+            ${isOwnProfile ? 'Мои треки' : `Треки ${name}`}
+            <span style="color:var(--text-3);font-weight:400;margin-left:8px">${userTracks.length}</span>
+          </div>
+
+          ${userTracks.length === 0 ? `
+            <div class="empty-state" style="padding:60px 0">
+              <div class="empty-state-icon">🎵</div>
+              <p class="empty-state-text">
+                ${isOwnProfile ? 'Вы ещё не загрузили ни одного трека' : 'Нет треков'}
+              </p>
+              ${isOwnProfile ? `<a href="#upload" class="btn btn--primary" style="margin-top:12px">Загрузить первый трек</a>` : ''}
+            </div>` : `
+            <div class="tracks-grid" id="user-tracks-grid"></div>`}
+        </div>
       </div>
     </div>`;
 
-	try {
-		// Параллельно тянем профиль + треки
-		const [userSnap, tracksSnap] = await Promise.all([
-			getDoc(doc(db, 'users', uid)),
-			getDocs(
-				query(
-					collection(db, 'tracks'),
-					where('uploadedBy', '==', uid),
-					orderBy('createdAt', 'desc')
-				)
-			)
-		]);
-
-		const userData = userSnap.exists() ? userSnap.data() : null;
-		const tracks = [];
-		tracksSnap.forEach(d => tracks.push({ id: d.id, ...d.data() }));
-
-		// Считаем суммарную статистику из треков
-		const totalRatings = tracks.reduce((sum, t) => sum + (t.totalRatings || 0), 0);
-		const avgRating = tracks.length
-			? (tracks.reduce((sum, t) => sum + (t.averageRating || 0), 0) / tracks.length).toFixed(1)
-			: '—';
-
-		const displayName = userData?.username || userData?.displayName || 'Неизвестный исполнитель';
-		const email = userData?.email || '';
-		const avatarUrl = userData?.avatar || userData?.photoURL || null;
-		const createdAt = userData?.createdAt?.toDate
-			? userData.createdAt.toDate().toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' })
-			: '';
-
-		const isOwn = auth.currentUser?.uid === uid;
-
-		// Карточки треков
-		const tracksHTML = tracks.length
-			? tracks.map(t => {
-				const cover = t.coverUrl
-					? `<img src="${t.coverUrl}" alt="${escHtml(t.title)}" class="track-card__cover">`
-					: `<div class="track-card__cover track-card__cover--placeholder"><span>♪</span></div>`;
-				const rating = t.totalRatings
-					? `<span class="badge badge--accent">${(t.averageRating || 0).toFixed(1)} ★</span>`
-					: `<span class="badge">Без оценок</span>`;
-				return `
-            <a href="#track/${t.id}" class="track-card track-card--profile">
-              ${cover}
-              <div class="track-card__body">
-                <p class="track-card__title">${escHtml(t.title)}</p>
-                <p class="track-card__meta">${escHtml(t.genre || '')}</p>
-                <div class="track-card__footer">
-                  ${rating}
-                  <span class="track-card__ratings">${t.totalRatings || 0} оц.</span>
-                </div>
-              </div>
-            </a>`;
-			}).join('')
-			: `<p class="empty-state__text" style="grid-column:1/-1">Треков пока нет</p>`;
-
-		// Разбивка по критериям — среднее по всем трекам
-		const criteria = ['rhymes', 'structure', 'style', 'charisma', 'vibe'];
-		const criteriaLabels = {
-			rhymes: 'Рифмы / образы',
-			structure: 'Структура / ритмика',
-			style: 'Реализация стиля',
-			charisma: 'Индивидуальность',
-			vibe: 'Вайб'
-		};
-		let criteriaHTML = '';
-		if (tracks.length && totalRatings > 0) {
-			criteriaHTML = `
-        <div class="profile-criteria">
-          <h3 class="section-title">Разбивка по критериям</h3>
-          <div class="criteria-bars">
-            ${criteria.map(key => {
-				const avg = tracks
-					.filter(t => t.ratingBreakdown?.[key] != null)
-					.reduce((sum, t) => sum + (t.ratingBreakdown[key] || 0), 0) /
-					Math.max(tracks.filter(t => t.ratingBreakdown?.[key] != null).length, 1);
-				const pct = (avg / 10 * 100).toFixed(1);
-				return `
-                <div class="criteria-bar">
-                  <div class="criteria-bar__label">
-                    <span>${criteriaLabels[key]}</span>
-                    <span class="criteria-bar__value">${avg.toFixed(1)}</span>
-                  </div>
-                  <div class="criteria-bar__track">
-                    <div class="criteria-bar__fill" style="width:${pct}%"></div>
-                  </div>
-                </div>`;
-			}).join('')}
-          </div>
-        </div>`;
-		}
-
-		container.innerHTML = `
-      <div class="profile-page">
-
-        <!-- Шапка профиля -->
-        <div class="profile-header">
-          <div class="profile-header__bg"></div>
-          <div class="profile-header__content">
-            <div class="profile-avatar">
-              ${avatarUrl
-				? `<img src="${avatarUrl}" alt="Аватар" class="profile-avatar__img">`
-				: `<div class="profile-avatar__placeholder">${displayName.charAt(0).toUpperCase()}</div>`}
-              ${isOwn ? `<button class="profile-avatar__edit-btn" id="btn-change-avatar" title="Сменить аватар">✎</button>` : ''}
-            </div>
-            <div class="profile-header__info">
-              <h1 class="profile-name">${escHtml(displayName)}</h1>
-              ${email ? `<p class="profile-email">${escHtml(email)}</p>` : ''}
-              ${createdAt ? `<p class="profile-since">На сайте с ${createdAt}</p>` : ''}
-            </div>
-          </div>
-        </div>
-
-        <!-- Статистика -->
-        <div class="profile-stats">
-          <div class="stat-card">
-            <span class="stat-card__value">${tracks.length}</span>
-            <span class="stat-card__label">Треков</span>
-          </div>
-          <div class="stat-card">
-            <span class="stat-card__value">${totalRatings}</span>
-            <span class="stat-card__label">Оценок получено</span>
-          </div>
-          <div class="stat-card stat-card--accent">
-            <span class="stat-card__value">${avgRating}</span>
-            <span class="stat-card__label">Средний рейтинг</span>
-          </div>
-        </div>
-
-        ${criteriaHTML}
-
-        <!-- Треки музыканта -->
-        <section class="profile-tracks">
-          <h2 class="section-title">Треки исполнителя</h2>
-          <div class="profile-tracks__grid">
-            ${tracksHTML}
-          </div>
-        </section>
-
-      </div>`;
-
-	} catch (err) {
-		console.error('ProfileView error:', err);
-		container.innerHTML = `
-      <div class="empty-state">
-        <p class="empty-state__text">Ошибка загрузки профиля: ${err.message}</p>
-      </div>`;
+	// Вставить карточки треков
+	if (userTracks.length > 0) {
+		const grid = container.querySelector('#user-tracks-grid');
+		userTracks.forEach(t => grid.appendChild(TrackCard(t)));
 	}
-}
 
-function escHtml(str) {
-	return String(str || '')
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;');
+	return { element: container };
 }

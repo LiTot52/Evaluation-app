@@ -1,6 +1,10 @@
-import { getTrackById } from '../store.js';
+// ══════════════════════════════════════════
+//   TRACKVIEW.JS
+// ══════════════════════════════════════════
+
+import { getTrackById, CRITERIA, currentUser } from '../store.js';
 import { RatingWidget } from '../components/RatingWidget.js';
-import { showToast } from '../app.js';
+import { formatTime } from '../utils.js';
 
 export async function TrackView(trackId) {
 	const container = document.createElement('div');
@@ -10,176 +14,127 @@ export async function TrackView(trackId) {
 
 	if (!track) {
 		container.innerHTML = `
-			<div class="empty-state" style="padding-top: 200px;">
-				<div class="empty-state-icon">❌</div>
-				<h2 class="empty-state-title">Трек не найден</h2>
-			</div>
-		`;
+      <div class="empty-state" style="padding-top:200px">
+        <div class="empty-state-icon">❌</div>
+        <h2 class="empty-state-title">Трек не найден</h2>
+        <a href="#feed" class="btn btn--ghost" style="margin-top:8px">На главную</a>
+      </div>`;
 		return { element: container };
 	}
 
+	const breakdownRows = CRITERIA.map(({ key, label }) => {
+		const val = track.ratingBreakdown?.[key] || 0;
+		return `
+      <div class="criteria-row">
+        <div class="criteria-label">${label}</div>
+        <div class="criteria-bar-wrap">
+          <div class="criteria-bar-fill" style="width:${val * 10}%"></div>
+        </div>
+        <div class="criteria-val">${val.toFixed(1)}</div>
+      </div>`;
+	}).join('');
+
+	const isOwn = currentUser?.uid === track.uploadedBy;
+
 	container.innerHTML = `
-		<div class="track-page">
-			<!-- LEFT SIDEBAR -->
-			<div class="track-sidebar">
-				<!-- Cover -->
-				<div class="track-cover-placeholder" style="background-image: url('${track.coverUrl}'); background-size: cover;">
-					${!track.coverUrl ? '🎵' : ''}
-				</div>
+    <div class="track-page">
 
-				<!-- Audio Player -->
-				<div class="audio-player">
-					<div class="player-controls">
-						<button class="player-play-btn" id="play-btn">▶</button>
-						<div class="player-time">
-							<span id="current-time">0:00</span> / <span id="duration">0:00</span>
-						</div>
-					</div>
+      <!-- ЛЕВАЯ КОЛОНКА -->
+      <div class="track-sidebar">
+        <div class="track-cover-placeholder"
+          style="${track.coverUrl ? `background:url('${track.coverUrl}') center/cover;` : ''}">
+          ${track.coverUrl ? '' : '🎵'}
+        </div>
 
-					<div class="player-progress" id="progress-bar">
-						<div class="player-progress-fill" id="progress-fill"></div>
-					</div>
+        <div class="audio-player">
+          <div class="player-controls">
+            <button class="player-play-btn" id="play-btn">▶</button>
+            <div class="player-time">
+              <span id="cur-time">0:00</span> / <span id="dur-time">0:00</span>
+            </div>
+          </div>
+          <div class="player-progress" id="progress-bar">
+            <div class="player-progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="player-volume">
+            <span>🔊</span>
+            <input type="range" min="0" max="100" value="100" id="vol-slider">
+          </div>
+        </div>
 
-					<div class="player-volume">
-						<span>🔊</span>
-						<input type="range" min="0" max="100" value="100" id="volume-slider">
-					</div>
-				</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px">
+          <div class="section-label" style="margin-bottom:14px">Разбивка оценок</div>
+          ${breakdownRows}
+        </div>
+      </div>
 
-				<!-- Criteria Breakdown -->
-				<div class="criteria-breakdown" style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px;">
-					<div style="font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-2); margin-bottom: 16px;">Разбивка по критериям</div>
-					${['rhymes', 'structure', 'style', 'charisma', 'vibe'].map(criterion => `
-						<div class="criteria-row">
-							<div class="criteria-label">${{ rhymes: '✍️ Рифмы', structure: '🎼 Структура', style: '🎨 Стиль', charisma: '⚡ Харизма', vibe: '🌊 Вайб' }[criterion]}</div>
-							<div class="criteria-bar-wrap">
-								<div class="criteria-bar-fill" style="width: ${(track.ratingBreakdown?.[criterion] || 0) * 10}%"></div>
-							</div>
-							<div class="criteria-val">${(track.ratingBreakdown?.[criterion] || 0).toFixed(1)}</div>
-						</div>
-					`).join('')}
-				</div>
-			</div>
+      <!-- ПРАВАЯ КОЛОНКА -->
+      <div class="track-main">
+        <div class="track-info">
+          <h1 class="track-info-title">${track.title}</h1>
+          <div class="track-info-author" style="margin:10px 0 16px;display:flex;align-items:center;gap:8px">
+            <span style="color:var(--text-2)">👤</span>
+            <a href="#profile/${track.uploadedBy}" style="color:var(--text-2);transition:color .15s"
+               onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-2)'">
+              ${track.uploadedByName || track.artist || 'Неизвестно'}
+            </a>
+            ${isOwn ? '<span style="font-size:11px;background:var(--accent-dim);color:var(--accent);padding:2px 8px;border-radius:99px;border:1px solid rgba(232,255,71,.2)">Мой трек</span>' : ''}
+          </div>
+          ${track.description ? `<p style="color:var(--text-2);line-height:1.8;margin-bottom:16px">${track.description}</p>` : ''}
+          <div class="track-info-tags">
+            ${track.genre ? `<span class="tag">🎸 ${track.genre}</span>` : ''}
+            <span class="tag" id="rating-tag">⭐ ${track.totalRatings || 0} оценок</span>
+          </div>
+        </div>
 
-			<!-- RIGHT CONTENT -->
-			<div class="track-main">
-				<!-- Track Info -->
-				<div class="track-info">
-					<h1 class="track-info-title">${track.title}</h1>
-					<div class="track-info-author" style="cursor: pointer; user-select: none;" onclick="window.location.hash = '#profile/${track.uploadedBy}'">
-						<span>${track.uploadedByName || 'Unknown'}</span>
-					</div>
-					<p style="color: var(--text-2); line-height: 1.8; margin: 16px 0;">
-						${track.description || 'Нет описания'}
-					</p>
-					<div class="track-info-tags">
-						<span class="tag">${track.genre}</span>
-						<span class="tag" id="stats">⭐ ${track.totalRatings} оценок</span>
-					</div>
-				</div>
+        <div class="track-total-score">
+          <div class="track-total-score-num" id="avg-score">
+            ${track.averageRating ? track.averageRating.toFixed(1) : '—'}
+          </div>
+          <div class="track-total-score-info">
+            <div class="track-total-score-title">Средняя оценка</div>
+            <div class="track-total-score-count" id="total-count">${track.totalRatings || 0} оценок</div>
+          </div>
+        </div>
 
-				<!-- Total Score -->
-				<div class="track-total-score">
-					<div class="track-total-score-num">${(track.averageRating || 0).toFixed(1)}</div>
-					<div class="track-total-score-info">
-						<div class="track-total-score-title">Средняя оценка</div>
-						<div class="track-total-score-count" id="ratings-count">${track.totalRatings} оценок</div>
-					</div>
-				</div>
+        <div id="rating-widget-container"></div>
+      </div>
+    </div>`;
 
-				<!-- Rating Widget -->
-				<div id="rating-widget-container"></div>
-			</div>
-		</div>
-	`;
-
+	// ── Плеер ──
 	const audio = new Audio(track.audioUrl);
 	const playBtn = container.querySelector('#play-btn');
-	const progressBar = container.querySelector('#progress-bar');
-	const progressFill = container.querySelector('#progress-fill');
-	const currentTimeEl = container.querySelector('#current-time');
-	const durationEl = container.querySelector('#duration');
-	const volumeSlider = container.querySelector('#volume-slider');
-
-	audio.volume = 1;
-
-	const formatTime = (seconds) => {
-		if (!seconds) return '0:00';
-		const mins = Math.floor(seconds / 60);
-		const secs = Math.floor(seconds % 60);
-		return `${mins}:${secs.toString().padStart(2, '0')}`;
-	};
+	const progBar = container.querySelector('#progress-bar');
+	const progFill = container.querySelector('#progress-fill');
+	const curTime = container.querySelector('#cur-time');
+	const durTime = container.querySelector('#dur-time');
+	const volSlid = container.querySelector('#vol-slider');
 
 	playBtn.addEventListener('click', () => {
-		if (audio.paused) {
-			audio.play();
-			playBtn.textContent = '⏸';
-		} else {
-			audio.pause();
-			playBtn.textContent = '▶';
-		}
+		audio.paused ? (audio.play(), playBtn.textContent = '⏸') : (audio.pause(), playBtn.textContent = '▶');
 	});
-
+	audio.addEventListener('loadedmetadata', () => { durTime.textContent = formatTime(audio.duration); });
 	audio.addEventListener('timeupdate', () => {
-		const percent = (audio.currentTime / audio.duration) * 100;
-		progressFill.style.width = percent + '%';
-		currentTimeEl.textContent = formatTime(audio.currentTime);
+		curTime.textContent = formatTime(audio.currentTime);
+		progFill.style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0) + '%';
 	});
-
-	audio.addEventListener('loadedmetadata', () => {
-		durationEl.textContent = formatTime(audio.duration);
+	audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+	progBar.addEventListener('click', e => {
+		const r = progBar.getBoundingClientRect();
+		audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
 	});
+	volSlid.addEventListener('input', e => { audio.volume = e.target.value / 100; });
 
-	progressBar.addEventListener('click', (e) => {
-		const rect = progressBar.getBoundingClientRect();
-		const percent = (e.clientX - rect.left) / rect.width;
-		audio.currentTime = percent * audio.duration;
-	});
-
-	volumeSlider.addEventListener('input', (e) => {
-		audio.volume = e.target.value / 100;
-	});
-
-	audio.addEventListener('ended', () => {
-		playBtn.textContent = '▶';
-	});
-
-	const ratingContainer = container.querySelector('#rating-widget-container');
-	ratingContainer.appendChild(await RatingWidget(trackId));
-
-	const observer = new PeriodicReload(trackId, container);
+	// ── Виджет оценки ──
+	const rw = container.querySelector('#rating-widget-container');
+	rw.appendChild(await RatingWidget(trackId, (newAvg, newCount) => {
+		container.querySelector('#avg-score').textContent = newAvg.toFixed(1);
+		container.querySelector('#total-count').textContent = `${newCount} оценок`;
+		container.querySelector('#rating-tag').textContent = `⭐ ${newCount} оценок`;
+	}));
 
 	return {
 		element: container,
-		cleanup: () => {
-			audio.pause();
-			observer.stop();
-		}
+		cleanup: () => audio.pause(),
 	};
-}
-
-class PeriodicReload {
-	constructor(trackId, container) {
-		this.trackId = trackId;
-		this.container = container;
-		this.interval = setInterval(() => this.checkForUpdates(), 5000);
-	}
-
-	async checkForUpdates() {
-		const { getTrackById } = await import('../store.js');
-		const track = await getTrackById(this.trackId);
-		if (track) {
-			const statsEl = this.container.querySelector('#stats');
-			const countEl = this.container.querySelector('#ratings-count');
-			const scoreEl = this.container.querySelector('.track-total-score-num');
-
-			if (statsEl) statsEl.textContent = `⭐ ${track.totalRatings} оценок`;
-			if (countEl) countEl.textContent = `${track.totalRatings} оценок`;
-			if (scoreEl) scoreEl.textContent = track.averageRating.toFixed(1);
-		}
-	}
-
-	stop() {
-		clearInterval(this.interval);
-	}
 }

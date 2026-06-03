@@ -1,294 +1,247 @@
+// ══════════════════════════════════════════
+//   STORE.JS
+// ══════════════════════════════════════════
+
 import { auth, db, storage } from './firebase-config.js';
 import {
-	signInWithEmailAndPassword,
-	createUserWithEmailAndPassword,
-	signOut,
-	onAuthStateChanged,
-	GoogleAuthProvider,
-	signInWithPopup
+	signInWithEmailAndPassword, createUserWithEmailAndPassword,
+	signOut, onAuthStateChanged, GoogleAuthProvider,
+	signInWithPopup, updateProfile,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-	collection,
-	doc,
-	getDoc,
-	setDoc,
-	getDocs,
-	addDoc,
-	query,
-	where,
-	onSnapshot,
-	updateDoc,
-	deleteDoc,
-	getCountFromServer
+	collection, doc, getDoc, setDoc, getDocs,
+	addDoc, query, where, onSnapshot, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import {
-	ref,
-	uploadBytes,
-	getDownloadURL
+	ref, uploadBytesResumable, getDownloadURL,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
+// ─────────────────────────────────────────
+// СОСТОЯНИЕ
+// ─────────────────────────────────────────
 export let currentUser = null;
 export let tracks = [];
-let listeners = [];
 
+export const CRITERIA = [
+	{ key: 'rhymes', label: 'Рифмы / образы' },
+	{ key: 'structure', label: 'Структура / ритмика' },
+	{ key: 'style', label: 'Реализация стиля' },
+	{ key: 'charisma', label: 'Харизма' },
+	{ key: 'vibe', label: 'Вайб' },
+];
+
+export const GENRES = [
+	'Рэп', 'Хип-Хоп', 'Trap', 'Drill', 'Boom Bap',
+	'Cloud Rap', 'Lo-Fi Рэп', 'Hardcore Рэп',
+	'Conscious Rap', 'Gangsta Rap', 'Alternative Rap',
+	'Jazz Rap', 'Phonk', 'R&B', 'Soul', 'Neo-Soul',
+	'Pop Rap', 'Crunk', 'Mumble Rap', 'Другой',
+];
+
+// ─────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────
 export async function registerUser(email, username, password) {
-	const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-	const uid = userCredential.user.uid;
-
-	await setDoc(doc(db, 'users', uid), {
-		uid,
-		username,
-		email,
-		avatar: null,
-		createdAt: new Date(),
-		uploadsCount: 0,
-		ratingsCount: 0
+	const { user } = await createUserWithEmailAndPassword(auth, email, password);
+	await updateProfile(user, { displayName: username });
+	await setDoc(doc(db, 'users', user.uid), {
+		uid: user.uid, username, email,
+		avatar: null, createdAt: new Date(),
+		uploadsCount: 0, ratingsCount: 0,
 	});
-
-	return userCredential.user;
+	return user;
 }
 
 export async function loginUser(email, password) {
-	const userCredential = await signInWithEmailAndPassword(auth, email, password);
-	return userCredential.user;
+	const { user } = await signInWithEmailAndPassword(auth, email, password);
+	return user;
 }
 
 export async function loginWithGoogle() {
 	const provider = new GoogleAuthProvider();
-	const userCredential = await signInWithPopup(auth, provider);
-	const uid = userCredential.user.uid;
-	const email = userCredential.user.email;
-	const username = userCredential.user.displayName || email.split('@')[0];
-
-	const userDoc = await getDoc(doc(db, 'users', uid));
-	if (!userDoc.exists()) {
-		await setDoc(doc(db, 'users', uid), {
-			uid,
-			username,
-			email,
-			avatar: userCredential.user.photoURL || null,
-			createdAt: new Date(),
-			uploadsCount: 0,
-			ratingsCount: 0
+	const { user } = await signInWithPopup(auth, provider);
+	const snap = await getDoc(doc(db, 'users', user.uid));
+	if (!snap.exists()) {
+		await setDoc(doc(db, 'users', user.uid), {
+			uid: user.uid,
+			username: user.displayName || user.email.split('@')[0],
+			email: user.email, avatar: user.photoURL || null,
+			createdAt: new Date(), uploadsCount: 0, ratingsCount: 0,
 		});
 	}
-
-	return userCredential.user;
+	return user;
 }
 
-export async function logoutUser() {
-	await signOut(auth);
-	currentUser = null;
-}
+export function logoutUser() { return signOut(auth); }
 
 export function onAuthChange(callback) {
-	onAuthStateChanged(auth, async (user) => {
-		currentUser = user;
-		callback(user);
-	});
+	onAuthStateChanged(auth, (user) => { currentUser = user; callback(user); });
 }
+
+// ─────────────────────────────────────────
+// ТРЕКИ  (сортируем на клиенте — не нужен индекс Firestore)
+// ─────────────────────────────────────────
+const _sortByDate = (arr) =>
+	[...arr].sort((a, b) => {
+		const ta = a.createdAt?.toDate?.() ?? new Date(a.createdAt ?? 0);
+		const tb = b.createdAt?.toDate?.() ?? new Date(b.createdAt ?? 0);
+		return tb - ta;
+	});
 
 export async function loadAllTracks() {
 	try {
-		const snapshot = await getDocs(collection(db, 'tracks'));
-		tracks = snapshot.docs.map(doc => ({
-			...doc.data(),
-			id: doc.id
-		}));
-		notifyListeners();
+		const snap = await getDocs(collection(db, 'tracks'));
+		tracks = _sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 		return tracks;
-	} catch (error) {
-		console.error('Error loading tracks:', error);
-		throw error;
+	} catch (err) {
+		console.error('loadAllTracks error:', err);
+		return [];
 	}
 }
 
+// Подписка на реалтайм (без orderBy — сортировка на клиенте)
 export function subscribeToTracks(callback) {
-	const unsubscribe = onSnapshot(collection(db, 'tracks'), (snapshot) => {
-		tracks = snapshot.docs.map(doc => ({
-			...doc.data(),
-			id: doc.id
-		}));
-		callback(tracks);
-		notifyListeners();
+	return onSnapshot(
+		collection(db, 'tracks'),
+		(snap) => {
+			tracks = _sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+			callback(tracks);
+		},
+		(err) => console.error('subscribeToTracks error:', err)
+	);
+}
+
+export async function getTrackById(id) {
+	const snap = await getDoc(doc(db, 'tracks', id));
+	return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// Треки конкретного пользователя
+export async function getTracksByUser(uid) {
+	const snap = await getDocs(
+		query(collection(db, 'tracks'), where('uploadedBy', '==', uid))
+	);
+	return _sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+}
+
+// Топ треков — сортировка на клиенте
+export async function getTopTracks(n = 20) {
+	const snap = await getDocs(collection(db, 'tracks'));
+	return snap.docs
+		.map(d => ({ id: d.id, ...d.data() }))
+		.filter(t => t.totalRatings > 0)
+		.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+		.slice(0, n);
+}
+
+// ─────────────────────────────────────────
+// ПОЛЬЗОВАТЕЛИ
+// ─────────────────────────────────────────
+export async function getUserById(uid) {
+	const snap = await getDoc(doc(db, 'users', uid));
+	return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// ─────────────────────────────────────────
+// ЗАГРУЗКА
+// ─────────────────────────────────────────
+export async function uploadTrack({ title, artist, genre, description, audioFile, coverFile }, onProgress) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+
+	const trackId = `track_${Date.now()}_${currentUser.uid}`;
+
+	const audioUrl = await _uploadFile(
+		ref(storage, `tracks/${trackId}/audio`), audioFile,
+		p => onProgress?.('audio', p)
+	);
+	const coverUrl = await _uploadFile(
+		ref(storage, `tracks/${trackId}/cover`), coverFile,
+		p => onProgress?.('cover', p)
+	);
+
+	const breakdown = Object.fromEntries(CRITERIA.map(c => [c.key, 0]));
+	const trackData = {
+		title, artist, genre: genre || 'Рэп',
+		description: description || '',
+		uploadedBy: currentUser.uid,
+		uploadedByName: currentUser.displayName || currentUser.email,
+		audioUrl, coverUrl,
+		averageRating: 0, totalRatings: 0,
+		ratingBreakdown: breakdown,
+		createdAt: new Date(),
+	};
+
+	const ref2 = await addDoc(collection(db, 'tracks'), trackData);
+
+	// Счётчик загрузок
+	const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
+	if (uSnap.exists()) {
+		await updateDoc(doc(db, 'users', currentUser.uid), {
+			uploadsCount: (uSnap.data().uploadsCount || 0) + 1,
+		});
+	}
+
+	return { id: ref2.id, ...trackData };
+}
+
+function _uploadFile(storageRef, file, onProgress) {
+	return new Promise((resolve, reject) => {
+		const task = uploadBytesResumable(storageRef, file);
+		task.on('state_changed',
+			s => onProgress?.(Math.round(s.bytesTransferred / s.totalBytes * 100)),
+			reject,
+			async () => resolve(await getDownloadURL(task.snapshot.ref))
+		);
 	});
-	return unsubscribe;
 }
 
-export async function getTrackById(trackId) {
-	try {
-		const docSnap = await getDoc(doc(db, 'tracks', trackId));
-		if (docSnap.exists()) {
-			return { ...docSnap.data(), id: docSnap.id };
-		}
-		return null;
-	} catch (error) {
-		console.error('Error loading track:', error);
-		throw error;
-	}
-}
-
-export async function uploadTrack(title, artist, genre, description, audioFile, coverFile) {
-	if (!currentUser) throw new Error('User not authenticated');
-
-	try {
-		const trackId = `track_${Date.now()}`;
-
-		const audioRef = ref(storage, `tracks/${trackId}/audio`);
-		await uploadBytes(audioRef, audioFile);
-		const audioUrl = await getDownloadURL(audioRef);
-
-		const coverRef = ref(storage, `tracks/${trackId}/cover`);
-		await uploadBytes(coverRef, coverFile);
-		const coverUrl = await getDownloadURL(coverRef);
-
-		const audio = new Audio(audioUrl);
-		const duration = await new Promise(resolve => {
-			audio.onloadedmetadata = () => resolve(Math.round(audio.duration));
-		});
-
-		const trackData = {
-			title,
-			artist,
-			genre,
-			description: description || '',
-			uploadedBy: currentUser.uid,
-			uploadedByName: currentUser.displayName || currentUser.email,
-			audioUrl,
-			coverUrl,
-			averageRating: 0,
-			totalRatings: 0,
-			ratingBreakdown: {
-				rhymes: 0,
-				structure: 0,
-				style: 0,
-				charisma: 0,
-				vibe: 0
-			},
-			duration,
-			createdAt: new Date()
-		};
-
-		const docRef = await addDoc(collection(db, 'tracks'), trackData);
-
-		await updateDoc(doc(db, 'users', currentUser.uid), {
-			uploadsCount: (await getDoc(doc(db, 'users', currentUser.uid))).data().uploadsCount + 1
-		});
-
-		return { ...trackData, id: docRef.id };
-	} catch (error) {
-		console.error('Error uploading track:', error);
-		throw error;
-	}
-}
-
-export async function rateTrack(trackId, ratings) {
-	if (!currentUser) throw new Error('User not authenticated');
-
-	try {
-		const ratingId = `${currentUser.uid}_${trackId}`;
-		const overallRating = (ratings.rhymes + ratings.structure + ratings.style + ratings.charisma + ratings.vibe) / 5;
-
-		// Save rating
-		await setDoc(doc(db, 'ratings', ratingId), {
-			trackId,
-			userId: currentUser.uid,
-			rhymes: ratings.rhymes,
-			structure: ratings.structure,
-			style: ratings.style,
-			charisma: ratings.charisma,
-			vibe: ratings.vibe,
-			overallRating,
-			createdAt: new Date(),
-			updatedAt: new Date()
-		});
-
-		await recalculateTrackRating(trackId);
-
-		const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-		const ratingsCount = userDoc.data().ratingsCount || 0;
-		await updateDoc(doc(db, 'users', currentUser.uid), {
-			ratingsCount: ratingsCount + 1
-		});
-
-		return overallRating;
-	} catch (error) {
-		console.error('Error rating track:', error);
-		throw error;
-	}
-}
-
+// ─────────────────────────────────────────
+// ОЦЕНКИ
+// ─────────────────────────────────────────
 export async function getCurrentRating(trackId) {
 	if (!currentUser) return null;
-
-	try {
-		const ratingId = `${currentUser.uid}_${trackId}`;
-		const docSnap = await getDoc(doc(db, 'ratings', ratingId));
-		if (docSnap.exists()) {
-			return docSnap.data();
-		}
-		return null;
-	} catch (error) {
-		console.error('Error getting current rating:', error);
-		return null;
-	}
+	const snap = await getDoc(doc(db, 'ratings', `${currentUser.uid}_${trackId}`));
+	return snap.exists() ? snap.data() : null;
 }
 
-async function recalculateTrackRating(trackId) {
-	try {
-		const ratingsQuery = query(collection(db, 'ratings'), where('trackId', '==', trackId));
-		const ratingsSnapshot = await getDocs(ratingsQuery);
+export async function rateTrack(trackId, scores) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
-		if (ratingsSnapshot.empty) {
-			await updateDoc(doc(db, 'tracks', trackId), {
-				averageRating: 0,
-				totalRatings: 0,
-				ratingBreakdown: {
-					rhymes: 0,
-					structure: 0,
-					style: 0,
-					charisma: 0,
-					vibe: 0
-				}
-			});
-			return;
-		}
+	const keys = CRITERIA.map(c => c.key);
+	const total = Math.round(keys.reduce((s, k) => s + (scores[k] || 0), 0) / keys.length * 10) / 10;
 
-		const ratings = ratingsSnapshot.docs.map(doc => doc.data());
-		const totalRatings = ratings.length;
+	await setDoc(doc(db, 'ratings', `${currentUser.uid}_${trackId}`), {
+		trackId, userId: currentUser.uid,
+		...scores, total, ratedAt: new Date(),
+	});
 
-		const avgRhymes = ratings.reduce((sum, r) => sum + r.rhymes, 0) / totalRatings;
-		const avgStructure = ratings.reduce((sum, r) => sum + r.structure, 0) / totalRatings;
-		const avgStyle = ratings.reduce((sum, r) => sum + r.style, 0) / totalRatings;
-		const avgCharisma = ratings.reduce((sum, r) => sum + r.charisma, 0) / totalRatings;
-		const avgVibe = ratings.reduce((sum, r) => sum + r.vibe, 0) / totalRatings;
-		const avgRating = (avgRhymes + avgStructure + avgStyle + avgCharisma + avgVibe) / 5;
-
-		await updateDoc(doc(db, 'tracks', trackId), {
-			averageRating: Math.round(avgRating * 10) / 10,
-			totalRatings,
-			ratingBreakdown: {
-				rhymes: Math.round(avgRhymes * 10) / 10,
-				structure: Math.round(avgStructure * 10) / 10,
-				style: Math.round(avgStyle * 10) / 10,
-				charisma: Math.round(avgCharisma * 10) / 10,
-				vibe: Math.round(avgVibe * 10) / 10
-			}
-		});
-	} catch (error) {
-		console.error('Error recalculating rating:', error);
-	}
+	await _recalcTrack(trackId);
+	return total;
 }
 
-export function subscribe(callback) {
-	listeners.push(callback);
-	return () => {
-		listeners = listeners.filter(l => l !== callback);
-	};
+async function _recalcTrack(trackId) {
+	const snap = await getDocs(
+		query(collection(db, 'ratings'), where('trackId', '==', trackId))
+	);
+	if (snap.empty) return;
+
+	const all = snap.docs.map(d => d.data());
+	const count = all.length;
+	const breakdown = {};
+
+	CRITERIA.forEach(({ key }) => {
+		breakdown[key] = Math.round(
+			all.reduce((s, r) => s + (r[key] || 0), 0) / count * 10
+		) / 10;
+	});
+
+	const avg = Math.round(
+		Object.values(breakdown).reduce((s, v) => s + v, 0) / CRITERIA.length * 10
+	) / 10;
+
+	await updateDoc(doc(db, 'tracks', trackId), {
+		averageRating: avg, totalRatings: count, ratingBreakdown: breakdown,
+	});
 }
 
-function notifyListeners() {
-	listeners.forEach(callback => callback());
-}
-
-console.log('%c✅ Store initialized', 'color:#e8ff47; font-weight:bold');
+console.log('%c✅ Store ready', 'color:#e8ff47;font-weight:bold');
