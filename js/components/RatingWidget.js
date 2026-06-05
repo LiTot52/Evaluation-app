@@ -1,17 +1,14 @@
 // ══════════════════════════════════════════
-//   RATINGWIDGET.JS — Rating Input Component
+//   RATINGWIDGET.JS
 // ══════════════════════════════════════════
 
-import { currentUser, rateTrack, getCurrentRating, CRITERIA } from '../store.js';
+import { currentUser, rateTrack, getCurrentRating, getTrackById, CRITERIA } from '../store.js';
 import { showToast } from '../utils.js';
 
-/**
- * @param {string} trackId
- * @param {function(number, number):void} [onRated]  — callback(newAvg, newCount)
- */
 export async function RatingWidget(trackId, onRated) {
 	const container = document.createElement('div');
 
+	// Не авторизован
 	if (!currentUser) {
 		container.innerHTML = `
 			<div class="rating-widget">
@@ -23,10 +20,22 @@ export async function RatingWidget(trackId, onRated) {
 		return container;
 	}
 
+	// Проверяем — свой ли трек
+	const track = await getTrackById(trackId);
+	if (track?.uploadedBy === currentUser.uid) {
+		container.innerHTML = `
+			<div class="rating-widget">
+				<div class="rating-done">
+					<div class="rating-done-icon">🎤</div>
+					<p style="color:var(--text-2)">Нельзя оценивать собственный трек</p>
+				</div>
+			</div>`;
+		return container;
+	}
+
 	// Загружаем существующую оценку
 	const existingRating = await getCurrentRating(trackId);
 
-	// Начальные значения — если уже оценивали, подставляем старые
 	const scores = {};
 	CRITERIA.forEach(({ key }) => {
 		scores[key] = existingRating?.[key] ?? 5;
@@ -43,50 +52,34 @@ export async function RatingWidget(trackId, onRated) {
 				<span class="rating-criterion-name">${label}</span>
 				<span class="rating-criterion-val" data-criterion="${key}">${scores[key]}</span>
 			</div>
-			<input
-				type="range"
-				class="rating-slider"
-				min="1" max="10"
-				value="${scores[key]}"
-				data-criterion="${key}"
-			>
+			<input type="range" class="rating-slider" min="1" max="10"
+				value="${scores[key]}" data-criterion="${key}">
 		</div>`).join('');
 
 	container.innerHTML = `
 		<div class="rating-widget">
 			<h3 class="rating-widget-title">${existingRating ? 'Ваша оценка' : 'Оценить трек'}</h3>
-
-			<div class="rating-criteria">
-				${renderSliders()}
-			</div>
-
+			<div class="rating-criteria">${renderSliders()}</div>
 			<div class="rating-total-row">
 				<span class="rating-total-label">Общая оценка</span>
 				<span class="rating-total-val" id="overall-rating">${calcOverall().toFixed(1)}</span>
 			</div>
-
 			<button class="btn btn--primary btn--full" id="rating-submit-btn" style="margin-top:20px">
 				${existingRating ? 'Обновить оценку' : 'Сохранить оценку'}
 			</button>
 		</div>`;
 
-	// Ползунки
 	container.querySelectorAll('.rating-slider').forEach(slider => {
 		slider.addEventListener('input', e => {
 			const key = e.target.dataset.criterion;
 			scores[key] = parseInt(e.target.value, 10);
-
-			// Обновляем отображение значения
 			const valEl = container.querySelector(`.rating-criterion-val[data-criterion="${key}"]`);
 			if (valEl) valEl.textContent = scores[key];
-
-			// Обновляем итог
 			const overallEl = container.querySelector('#overall-rating');
 			if (overallEl) overallEl.textContent = calcOverall().toFixed(1);
 		});
 	});
 
-	// Кнопка сохранения
 	const submitBtn = container.querySelector('#rating-submit-btn');
 	submitBtn.addEventListener('click', async () => {
 		try {
@@ -100,7 +93,6 @@ export async function RatingWidget(trackId, onRated) {
 			submitBtn.style.background = 'var(--accent)';
 			submitBtn.style.color = '#000';
 
-			// Вызываем callback с новыми данными трека
 			if (typeof onRated === 'function' && result) {
 				onRated(result.averageRating, result.totalRatings);
 			}
@@ -113,7 +105,7 @@ export async function RatingWidget(trackId, onRated) {
 			}, 2500);
 		} catch (error) {
 			console.error('Rating error:', error);
-			showToast('Ошибка при сохранении оценки', 'error');
+			showToast(error.message || 'Ошибка при сохранении оценки', 'error');
 			submitBtn.disabled = false;
 			submitBtn.textContent = existingRating ? 'Обновить оценку' : 'Сохранить оценку';
 		}

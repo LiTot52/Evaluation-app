@@ -1189,3 +1189,145 @@
 		min-width: 28px;
 	}
 }
+
+/* ═══════════════════════════════════════
+   TRACK EDIT / FEAT / DELETE
+   ═══════════════════════════════════════ */
+
+.track-title-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.feat-str {
+	display: block;
+	font-size: 0.45em;
+	color: var(--text-2);
+	font-family: var(--font-body);
+	font-weight: 400;
+	letter-spacing: 0.02em;
+	margin-top: 4px;
+}
+
+.own-badge {
+	font-size: 11px;
+	background: var(--accent-dim);
+	color: var(--accent);
+	padding: 2px 8px;
+	border-radius: 99px;
+	border: 1px solid rgba(232, 255, 71, .2);
+}
+
+.btn--danger {
+	background: transparent;
+	border: 1px solid rgba(255, 85, 85, 0.3);
+	color: var(--red, #ff5555);
+	transition: background 0.15s, border-color 0.15s;
+}
+
+.btn--danger:hover {
+	background: rgba(255, 85, 85, 0.1);
+	border-color: rgba(255, 85, 85, 0.6);
+}
+
+/* Кнопка смены обложки трека */
+.cover-change-btn {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.7);
+	border: 1px solid var(--border-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	cursor: pointer;
+	transition: background 0.15s, transform 0.15s;
+	z-index: 2;
+}
+
+.cover-change-btn:hover {
+	background: var(--accent);
+	transform: scale(1.1);
+}
+
+/* Кнопка смены аватара в профиле */
+.avatar-change-btn {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.75);
+	border: 1px solid var(--border-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 14px;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.avatar-change-btn:hover {
+	background: var(--accent);
+}
+
+/* Кнопка-иконка (карандаш) */
+.btn-icon {
+	background: transparent;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	padding: 4px 8px;
+	font-size: 16px;
+	color: var(--text-2);
+	cursor: pointer;
+	transition: border-color 0.15s, color 0.15s;
+	flex-shrink: 0;
+}
+
+.btn-icon:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
+/* Кнопка удаления карточки трека */
+.track-card-delete-btn {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.7);
+	border: 1px solid rgba(255, 85, 85, 0.3);
+	color: #ff5555;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s, background 0.15s;
+	z-index: 5;
+}
+
+.track-card:hover .track-card-delete-btn {
+	opacity: 1;
+}
+
+.track-card-delete-btn:hover {
+	background: rgba(255, 85, 85, 0.3);
+}
+
+/* Поле фита в форме загрузки */
+.field-hint {
+	font-size: 12px;
+	color: var(--text-3);
+	margin-top: 4px;
+}

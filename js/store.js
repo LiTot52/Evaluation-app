@@ -10,7 +10,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
 	collection, doc, getDoc, setDoc, getDocs,
-	addDoc, query, where, onSnapshot, updateDoc,
+	addDoc, query, where, onSnapshot, updateDoc, deleteDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ─────────────────────────────────────────
@@ -87,6 +87,32 @@ export function onAuthChange(callback) {
 }
 
 // ─────────────────────────────────────────
+// ПРОФИЛЬ: никнейм и аватар
+// ─────────────────────────────────────────
+export async function updateUsername(newName) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+	await updateProfile(currentUser, { displayName: newName });
+	await updateDoc(doc(db, 'users', currentUser.uid), { username: newName });
+
+	// Обновляем имя автора во всех его треках
+	const snap = await getDocs(
+		query(collection(db, 'tracks'), where('uploadedBy', '==', currentUser.uid))
+	);
+	const updates = snap.docs.map(d =>
+		updateDoc(doc(db, 'tracks', d.id), { uploadedByName: newName })
+	);
+	await Promise.all(updates);
+}
+
+export async function updateAvatar(file) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+	const url = await _uploadToCloudinary(file, 'image', null);
+	await updateProfile(currentUser, { photoURL: url });
+	await updateDoc(doc(db, 'users', currentUser.uid), { avatar: url });
+	return url;
+}
+
+// ─────────────────────────────────────────
 // ТРЕКИ
 // ─────────────────────────────────────────
 const _sortByDate = (arr) =>
@@ -140,6 +166,59 @@ export async function getTopTracks(n = 20) {
 }
 
 // ─────────────────────────────────────────
+// РЕДАКТИРОВАНИЕ ТРЕКА (название, обложка)
+// ─────────────────────────────────────────
+export async function updateTrackInfo(trackId, { title, featArtists, coverFile } = {}) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+
+	const snap = await getDoc(doc(db, 'tracks', trackId));
+	if (!snap.exists()) throw new Error('Трек не найден');
+	if (snap.data().uploadedBy !== currentUser.uid) throw new Error('Нет прав');
+
+	const updates = {};
+	if (title !== undefined) updates.title = title;
+	if (featArtists !== undefined) updates.featArtists = featArtists;
+
+	if (coverFile) {
+		updates.coverUrl = await _uploadToCloudinary(coverFile, 'image', null);
+	}
+
+	await updateDoc(doc(db, 'tracks', trackId), updates);
+	return updates;
+}
+
+// ─────────────────────────────────────────
+// УДАЛЕНИЕ ТРЕКА
+// ─────────────────────────────────────────
+export async function deleteTrack(trackId) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+
+	const snap = await getDoc(doc(db, 'tracks', trackId));
+	if (!snap.exists()) throw new Error('Трек не найден');
+	if (snap.data().uploadedBy !== currentUser.uid) throw new Error('Нет прав');
+
+	// Удаляем все оценки трека
+	const ratingsSnap = await getDocs(
+		query(collection(db, 'ratings'), where('trackId', '==', trackId))
+	);
+	await Promise.all(ratingsSnap.docs.map(d => deleteDoc(d.ref)));
+
+	// Удаляем сам трек
+	await deleteDoc(doc(db, 'tracks', trackId));
+
+	// Обновляем счётчик
+	try {
+		const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
+		if (uSnap.exists()) {
+			const count = Math.max(0, (uSnap.data().uploadsCount || 1) - 1);
+			await updateDoc(doc(db, 'users', currentUser.uid), { uploadsCount: count });
+		}
+	} catch (e) {
+		console.warn('Could not update uploadsCount:', e);
+	}
+}
+
+// ─────────────────────────────────────────
 // ПОЛЬЗОВАТЕЛИ
 // ─────────────────────────────────────────
 export async function getUserById(uid) {
@@ -150,7 +229,7 @@ export async function getUserById(uid) {
 // ─────────────────────────────────────────
 // ЗАГРУЗКА (Cloudinary)
 // ─────────────────────────────────────────
-export async function uploadTrack({ title, artist, genre, description, audioFile, coverFile }, onProgress) {
+export async function uploadTrack({ title, artist, featArtists, genre, description, audioFile, coverFile }, onProgress) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
 	onProgress?.('audio', 0);
@@ -167,6 +246,7 @@ export async function uploadTrack({ title, artist, genre, description, audioFile
 	const trackData = {
 		title,
 		artist,
+		featArtists: featArtists || [],
 		genre: genre || 'Рэп',
 		description: description || '',
 		uploadedBy: currentUser.uid,
@@ -195,7 +275,6 @@ export async function uploadTrack({ title, artist, genre, description, audioFile
 	return { id: docRef.id, ...trackData };
 }
 
-// Загрузка файла на Cloudinary через XMLHttpRequest (с прогрессом)
 function _uploadToCloudinary(file, resourceType, onProgress) {
 	return new Promise((resolve, reject) => {
 		const formData = new FormData();
@@ -233,20 +312,15 @@ function _uploadToCloudinary(file, resourceType, onProgress) {
 			}
 		});
 
-		xhr.addEventListener('error', () => {
-			reject(new Error('Ошибка сети при загрузке на Cloudinary'));
-		});
-
-		xhr.addEventListener('abort', () => {
-			reject(new Error('Загрузка отменена'));
-		});
+		xhr.addEventListener('error', () => reject(new Error('Ошибка сети при загрузке на Cloudinary')));
+		xhr.addEventListener('abort', () => reject(new Error('Загрузка отменена')));
 
 		xhr.send(formData);
 	});
 }
 
 // ─────────────────────────────────────────
-// ОЦЕНКИ
+// ОЦЕНКИ (только не свои треки)
 // ─────────────────────────────────────────
 export async function getCurrentRating(trackId) {
 	if (!currentUser) return null;
@@ -256,6 +330,12 @@ export async function getCurrentRating(trackId) {
 
 export async function rateTrack(trackId, scores) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+
+	// Нельзя оценивать свой трек
+	const trackSnap = await getDoc(doc(db, 'tracks', trackId));
+	if (trackSnap.exists() && trackSnap.data().uploadedBy === currentUser.uid) {
+		throw new Error('Нельзя оценивать собственный трек');
+	}
 
 	const keys = CRITERIA.map(c => c.key);
 	const total = Math.round(keys.reduce((s, k) => s + (scores[k] || 0), 0) / keys.length * 10) / 10;

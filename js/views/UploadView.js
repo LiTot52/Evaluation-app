@@ -23,7 +23,6 @@ export async function UploadView() {
 	let audioFile = null;
 	let coverFile = null;
 
-	// Генерируем опции жанров
 	const genreOptions = GENRES.map(g =>
 		`<option value="${g}">${g}</option>`
 	).join('');
@@ -47,7 +46,15 @@ export async function UploadView() {
               value="${currentUser.displayName || ''}" required>
           </div>
 
-          <!-- Жанр — дропдаун -->
+          <!-- Фит -->
+          <div class="field">
+            <label class="field-label">Фит (необязательно)</label>
+            <input class="field-input" type="text" id="f-feat"
+              placeholder="Имена через запятую: Vasya, Petya">
+            <p class="field-hint">Укажи соавторов, если трек совместный</p>
+          </div>
+
+          <!-- Жанр -->
           <div class="field">
             <label class="field-label">Жанр</label>
             <div class="select-wrapper">
@@ -171,10 +178,15 @@ export async function UploadView() {
 		submitBtn.textContent = 'Загрузка...';
 		progBlock.style.display = 'block';
 
+		// Парсим фиты
+		const featRaw = container.querySelector('#f-feat').value.trim();
+		const featList = featRaw ? featRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
 		try {
 			const track = await uploadTrack({
 				title: container.querySelector('#f-title').value.trim(),
 				artist: container.querySelector('#f-artist').value.trim(),
+				featArtists: featList,
 				genre: container.querySelector('#f-genre').value,
 				description: container.querySelector('#f-desc').value.trim(),
 				audioFile, coverFile,
