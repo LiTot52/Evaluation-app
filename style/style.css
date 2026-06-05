@@ -641,6 +641,51 @@ textarea {
 	max-width: 300px;
 }
 
+.user-avatar-letter {
+	background: var(--accent);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #000;
+	font-weight: bold;
+	font-size: 14px;
+	text-decoration: none;
+}
+
+.header-user-wrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.user-info-link {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	text-decoration: none;
+	color: inherit;
+	border-radius: var(--radius-sm);
+	padding: 4px 8px;
+	transition: background 0.15s;
+}
+
+.user-info-link:hover {
+	background: var(--surface);
+}
+
+#btn-logout {
+	padding: 6px 10px;
+	font-size: 16px;
+	color: var(--text-3);
+	border-color: transparent;
+}
+
+#btn-logout:hover {
+	color: var(--red);
+	border-color: rgba(255, 85, 85, 0.3);
+	background: var(--red-dim);
+}
+
 /* ═══════════════════════════════════════
    АДАПТИВ
    ═══════════════════════════════════════ */

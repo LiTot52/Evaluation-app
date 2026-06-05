@@ -13,7 +13,7 @@ import {
 	addDoc, query, where, onSnapshot, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import {
-	ref, uploadBytesResumable, getDownloadURL,
+	ref as storageRef, uploadBytesResumable, getDownloadURL,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 // ─────────────────────────────────────────
@@ -59,14 +59,19 @@ export async function loginUser(email, password) {
 
 export async function loginWithGoogle() {
 	const provider = new GoogleAuthProvider();
+	provider.addScope('profile');
+	provider.addScope('email');
 	const { user } = await signInWithPopup(auth, provider);
 	const snap = await getDoc(doc(db, 'users', user.uid));
 	if (!snap.exists()) {
 		await setDoc(doc(db, 'users', user.uid), {
 			uid: user.uid,
 			username: user.displayName || user.email.split('@')[0],
-			email: user.email, avatar: user.photoURL || null,
-			createdAt: new Date(), uploadsCount: 0, ratingsCount: 0,
+			email: user.email,
+			avatar: user.photoURL || null,
+			createdAt: new Date(),
+			uploadsCount: 0,
+			ratingsCount: 0,
 		});
 	}
 	return user;
@@ -79,7 +84,7 @@ export function onAuthChange(callback) {
 }
 
 // ─────────────────────────────────────────
-// ТРЕКИ  (сортируем на клиенте — не нужен индекс Firestore)
+// ТРЕКИ
 // ─────────────────────────────────────────
 const _sortByDate = (arr) =>
 	[...arr].sort((a, b) => {
@@ -99,7 +104,6 @@ export async function loadAllTracks() {
 	}
 }
 
-// Подписка на реалтайм (без orderBy — сортировка на клиенте)
 export function subscribeToTracks(callback) {
 	return onSnapshot(
 		collection(db, 'tracks'),
@@ -116,7 +120,6 @@ export async function getTrackById(id) {
 	return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// Треки конкретного пользователя
 export async function getTracksByUser(uid) {
 	const snap = await getDocs(
 		query(collection(db, 'tracks'), where('uploadedBy', '==', uid))
@@ -124,7 +127,6 @@ export async function getTracksByUser(uid) {
 	return _sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 }
 
-// Топ треков — сортировка на клиенте
 export async function getTopTracks(n = 20) {
 	const snap = await getDocs(collection(db, 'tracks'));
 	return snap.docs
@@ -150,47 +152,81 @@ export async function uploadTrack({ title, artist, genre, description, audioFile
 
 	const trackId = `track_${Date.now()}_${currentUser.uid}`;
 
+	// Загружаем аудио (0–50% прогресса)
 	const audioUrl = await _uploadFile(
-		ref(storage, `tracks/${trackId}/audio`), audioFile,
-		p => onProgress?.('audio', p)
+		storageRef(storage, `tracks/${trackId}/audio`),
+		audioFile,
+		(p) => onProgress?.('audio', p)
 	);
+
+	// Загружаем обложку (0–100% прогресса)
 	const coverUrl = await _uploadFile(
-		ref(storage, `tracks/${trackId}/cover`), coverFile,
-		p => onProgress?.('cover', p)
+		storageRef(storage, `tracks/${trackId}/cover`),
+		coverFile,
+		(p) => onProgress?.('cover', p)
 	);
 
 	const breakdown = Object.fromEntries(CRITERIA.map(c => [c.key, 0]));
 	const trackData = {
-		title, artist, genre: genre || 'Рэп',
+		title,
+		artist,
+		genre: genre || 'Рэп',
 		description: description || '',
 		uploadedBy: currentUser.uid,
-		uploadedByName: currentUser.displayName || currentUser.email,
-		audioUrl, coverUrl,
-		averageRating: 0, totalRatings: 0,
+		uploadedByName: currentUser.displayName || currentUser.email.split('@')[0],
+		audioUrl,
+		coverUrl,
+		averageRating: 0,
+		totalRatings: 0,
 		ratingBreakdown: breakdown,
 		createdAt: new Date(),
 	};
 
-	const ref2 = await addDoc(collection(db, 'tracks'), trackData);
+	const docRef = await addDoc(collection(db, 'tracks'), trackData);
 
-	// Счётчик загрузок
-	const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
-	if (uSnap.exists()) {
-		await updateDoc(doc(db, 'users', currentUser.uid), {
-			uploadsCount: (uSnap.data().uploadsCount || 0) + 1,
-		});
+	// Обновляем счётчик загрузок пользователя
+	try {
+		const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
+		if (uSnap.exists()) {
+			await updateDoc(doc(db, 'users', currentUser.uid), {
+				uploadsCount: (uSnap.data().uploadsCount || 0) + 1,
+			});
+		}
+	} catch (e) {
+		console.warn('Could not update uploadsCount:', e);
 	}
 
-	return { id: ref2.id, ...trackData };
+	return { id: docRef.id, ...trackData };
 }
 
-function _uploadFile(storageRef, file, onProgress) {
+function _uploadFile(fileRef, file, onProgress) {
 	return new Promise((resolve, reject) => {
-		const task = uploadBytesResumable(storageRef, file);
-		task.on('state_changed',
-			s => onProgress?.(Math.round(s.bytesTransferred / s.totalBytes * 100)),
-			reject,
-			async () => resolve(await getDownloadURL(task.snapshot.ref))
+		const task = uploadBytesResumable(fileRef, file);
+		task.on(
+			'state_changed',
+			(snapshot) => {
+				const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+				onProgress?.(pct);
+			},
+			(error) => {
+				console.error('Upload error:', error.code, error.message);
+				// Понятные сообщения об ошибках
+				if (error.code === 'storage/unauthorized') {
+					reject(new Error('Нет доступа к хранилищу. Проверьте правила Firebase Storage.'));
+				} else if (error.code === 'storage/quota-exceeded') {
+					reject(new Error('Превышен лимит хранилища.'));
+				} else {
+					reject(new Error(`Ошибка загрузки: ${error.message}`));
+				}
+			},
+			async () => {
+				try {
+					const url = await getDownloadURL(task.snapshot.ref);
+					resolve(url);
+				} catch (e) {
+					reject(e);
+				}
+			}
 		);
 	});
 }
@@ -215,7 +251,6 @@ export async function rateTrack(trackId, scores) {
 		...scores, total, ratedAt: new Date(),
 	});
 
-	// Пересчитываем и возвращаем актуальные данные трека
 	return await _recalcTrack(trackId);
 }
 

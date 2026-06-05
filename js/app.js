@@ -49,16 +49,21 @@ function updateHeaderUser(user) {
 		const avatar = user.photoURL;
 
 		headerUser.innerHTML = `
-			<div class="user-info" style="display:flex;align-items:center;gap:12px;cursor:pointer" id="user-menu">
-				${avatar
+			<div class="header-user-wrap" id="user-menu-wrap">
+				<a href="#profile/${user.uid}" class="user-info-link" id="user-profile-link">
+					${avatar
 				? `<img src="${avatar}" alt="${name}" class="user-avatar-sm">`
-				: `<div class="user-avatar-sm" style="background:var(--accent);display:flex;align-items:center;justify-content:center;color:#000;font-weight:bold;">${name[0].toUpperCase()}</div>`
+				: `<div class="user-avatar-sm user-avatar-letter">${name[0].toUpperCase()}</div>`
 			}
-				<span class="user-name-sm">${name}</span>
+					<span class="user-name-sm">${name}</span>
+				</a>
+				<button class="btn btn--ghost btn--sm" id="btn-logout" title="Выйти">↪</button>
 			</div>`;
 
-		document.getElementById('user-menu').addEventListener('click', () => {
-			if (confirm(`Выйти из аккаунта ${name}?`)) handleLogout();
+		document.getElementById('btn-logout').addEventListener('click', () => handleLogout());
+		document.getElementById('user-profile-link').addEventListener('click', (e) => {
+			e.preventDefault();
+			goToView('profile', user.uid);
 		});
 	} else {
 		headerUser.innerHTML = `<button class="btn btn--ghost" id="btn-login">Войти</button>`;
