@@ -2,129 +2,122 @@
 //   RATINGWIDGET.JS — Rating Input Component
 // ══════════════════════════════════════════
 
-import { currentUser, rateTrack, getCurrentRating } from '../store.js';
-import { showToast } from '../app.js';
+import { currentUser, rateTrack, getCurrentRating, CRITERIA } from '../store.js';
+import { showToast } from '../utils.js';
 
-export async function RatingWidget(trackId) {
+/**
+ * @param {string} trackId
+ * @param {function(number, number):void} [onRated]  — callback(newAvg, newCount)
+ */
+export async function RatingWidget(trackId, onRated) {
 	const container = document.createElement('div');
 
 	if (!currentUser) {
 		container.innerHTML = `
 			<div class="rating-widget">
-				<p class="rating-done">
+				<div class="rating-done">
 					<div class="rating-done-icon">🔒</div>
-					Войдите в аккаунт чтобы оценить трек
-				</p>
-			</div>
-		`;
+					<p>Войдите в аккаунт, чтобы оценить трек</p>
+				</div>
+			</div>`;
 		return container;
 	}
 
-	// Load existing rating
+	// Загружаем существующую оценку
 	const existingRating = await getCurrentRating(trackId);
 
-	const criteria = [
-		{ name: 'Rhymes', key: 'rhymes', label: 'Рифмы/образы' },
-		{ name: 'Structure', key: 'structure', label: 'Структура/ритмика' },
-		{ name: 'Style', key: 'style', label: 'Реализация стиля' },
-		{ name: 'Charisma', key: 'charisma', label: 'Индивидуальность/харизма' },
-		{ name: 'Vibe', key: 'vibe', label: 'Вайб' }
-	];
+	// Начальные значения — если уже оценивали, подставляем старые
+	const scores = {};
+	CRITERIA.forEach(({ key }) => {
+		scores[key] = existingRating?.[key] ?? 5;
+	});
 
-	const ratings = {
-		rhymes: existingRating?.rhymes || 5,
-		structure: existingRating?.structure || 5,
-		style: existingRating?.style || 5,
-		charisma: existingRating?.charisma || 5,
-		vibe: existingRating?.vibe || 5
+	const calcOverall = () => {
+		const sum = CRITERIA.reduce((s, { key }) => s + (scores[key] || 0), 0);
+		return Math.round(sum / CRITERIA.length * 10) / 10;
 	};
 
-	const updateOverall = () => {
-		const overall = (ratings.beat + ratings.vocals + ratings.production + ratings.flow) / 4;
-		const overallEl = document.getElementById('overall-rating');
-		if (overallEl) {
-			overallEl.textContent = overall.toFixed(1);
-		}
-	};
-
-	const handleSubmit = async () => {
-		try {
-			const submitBtn = container.querySelector('.btn--primary');
-			submitBtn.disabled = true;
-			submitBtn.textContent = 'Сохранение...';
-
-			await rateTrack(trackId, ratings);
-
-			showToast('Оценка сохранена!', 'success');
-			submitBtn.textContent = 'Сохранено ✓';
-			submitBtn.style.background = 'var(--accent)';
-
-			setTimeout(() => {
-				submitBtn.disabled = false;
-				submitBtn.textContent = existingRating ? 'Обновить оценку' : 'Сохранить оценку';
-				submitBtn.style.background = '';
-			}, 2000);
-		} catch (error) {
-			showToast('Ошибка при сохранении оценки', 'error');
-			const submitBtn = container.querySelector('.btn--primary');
-			submitBtn.disabled = false;
-			submitBtn.textContent = 'Сохранить оценку';
-		}
-	};
+	const renderSliders = () => CRITERIA.map(({ key, label }) => `
+		<div class="rating-criterion">
+			<div class="rating-criterion-label">
+				<span class="rating-criterion-name">${label}</span>
+				<span class="rating-criterion-val" data-criterion="${key}">${scores[key]}</span>
+			</div>
+			<input
+				type="range"
+				class="rating-slider"
+				min="1" max="10"
+				value="${scores[key]}"
+				data-criterion="${key}"
+			>
+		</div>`).join('');
 
 	container.innerHTML = `
 		<div class="rating-widget">
-			<h3 class="rating-widget-title">Оценить трек</h3>
+			<h3 class="rating-widget-title">${existingRating ? 'Ваша оценка' : 'Оценить трек'}</h3>
 
 			<div class="rating-criteria">
-				${criteria.map(c => `
-					<div class="rating-criterion">
-						<div class="rating-criterion-label">
-							<span class="rating-criterion-name">${c.label}</span>
-							<span class="rating-criterion-val" data-criterion="${c.key}">${ratings[c.key]}</span>
-						</div>
-						<input
-							type="range"
-							class="rating-slider"
-							min="1"
-							max="10"
-							value="${ratings[c.key]}"
-							data-criterion="${c.key}"
-						>
-					</div>
-				`).join('')}
+				${renderSliders()}
 			</div>
 
 			<div class="rating-total-row">
 				<span class="rating-total-label">Общая оценка</span>
-				<span class="rating-total-val" id="overall-rating">${((ratings.beat + ratings.vocals + ratings.production + ratings.flow) / 4).toFixed(1)}</span>
+				<span class="rating-total-val" id="overall-rating">${calcOverall().toFixed(1)}</span>
 			</div>
 
-			<button class="btn btn--primary btn--full" style="margin-top: 20px;">
+			<button class="btn btn--primary btn--full" id="rating-submit-btn" style="margin-top:20px">
 				${existingRating ? 'Обновить оценку' : 'Сохранить оценку'}
 			</button>
-		</div>
-	`;
+		</div>`;
 
-	// Set up slider listeners
-	const sliders = container.querySelectorAll('.rating-slider');
-	sliders.forEach(slider => {
-		slider.addEventListener('input', (e) => {
-			const criterion = e.target.dataset.criterion;
-			const value = parseInt(e.target.value);
-			ratings[criterion] = value;
+	// Ползунки
+	container.querySelectorAll('.rating-slider').forEach(slider => {
+		slider.addEventListener('input', e => {
+			const key = e.target.dataset.criterion;
+			scores[key] = parseInt(e.target.value, 10);
 
-			// Update display
-			const display = container.querySelector(`[data-criterion="${criterion}"]`);
-			display.textContent = value;
+			// Обновляем отображение значения
+			const valEl = container.querySelector(`.rating-criterion-val[data-criterion="${key}"]`);
+			if (valEl) valEl.textContent = scores[key];
 
-			updateOverall();
+			// Обновляем итог
+			const overallEl = container.querySelector('#overall-rating');
+			if (overallEl) overallEl.textContent = calcOverall().toFixed(1);
 		});
 	});
 
-	// Submit button
-	const submitBtn = container.querySelector('.btn--primary');
-	submitBtn.addEventListener('click', handleSubmit);
+	// Кнопка сохранения
+	const submitBtn = container.querySelector('#rating-submit-btn');
+	submitBtn.addEventListener('click', async () => {
+		try {
+			submitBtn.disabled = true;
+			submitBtn.textContent = 'Сохранение...';
+
+			const result = await rateTrack(trackId, scores);
+
+			showToast('Оценка сохранена! 🎉', 'success');
+			submitBtn.textContent = 'Сохранено ✓';
+			submitBtn.style.background = 'var(--accent)';
+			submitBtn.style.color = '#000';
+
+			// Вызываем callback с новыми данными трека
+			if (typeof onRated === 'function' && result) {
+				onRated(result.averageRating, result.totalRatings);
+			}
+
+			setTimeout(() => {
+				submitBtn.disabled = false;
+				submitBtn.textContent = 'Обновить оценку';
+				submitBtn.style.background = '';
+				submitBtn.style.color = '';
+			}, 2500);
+		} catch (error) {
+			console.error('Rating error:', error);
+			showToast('Ошибка при сохранении оценки', 'error');
+			submitBtn.disabled = false;
+			submitBtn.textContent = existingRating ? 'Обновить оценку' : 'Сохранить оценку';
+		}
+	});
 
 	return container;
 }

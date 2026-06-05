@@ -1,17 +1,24 @@
+// ══════════════════════════════════════════
+//   FEEDVIEW.JS — Лента треков
+// ══════════════════════════════════════════
+
 import { db } from '../firebase-config.js';
 import {
 	collection, query, orderBy, limit,
-	getDocs, startAfter, onSnapshot
+	getDocs, startAfter,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { renderTrackCard } from '../components/TrackCard.js';
+import { TrackCard } from '../components/TrackCard.js';
 
 const PAGE_SIZE = 12;
 
-export function renderFeedView(container) {
+export async function FeedView() {
+	const container = document.createElement('div');
+	container.className = 'page';
+
 	container.innerHTML = `
     <div class="feed-page">
       <div class="feed-header">
-        <h1 class="feed-title">Лента треков</h1>
+        <h1 class="feed-title">Лента <span>треков</span></h1>
         <div class="feed-filters" id="feed-filters">
           <button class="filter-btn filter-btn--active" data-sort="new">Новые</button>
           <button class="filter-btn" data-sort="top">Топ</button>
@@ -31,34 +38,33 @@ export function renderFeedView(container) {
 	let lastDoc = null;
 	let loading = false;
 
-	// ── кнопки сортировки ──
-	document.getElementById('feed-filters')?.addEventListener('click', e => {
+	// Сортировка
+	container.querySelector('#feed-filters').addEventListener('click', e => {
 		const btn = e.target.closest('[data-sort]');
 		if (!btn || btn.dataset.sort === currentSort) return;
-		document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn--active'));
+		container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('filter-btn--active'));
 		btn.classList.add('filter-btn--active');
 		currentSort = btn.dataset.sort;
 		lastDoc = null;
 		loadTracks(true);
 	});
 
-	// ── «Загрузить ещё» ──
-	document.getElementById('btn-load-more')?.addEventListener('click', () => {
+	// «Загрузить ещё»
+	container.querySelector('#btn-load-more').addEventListener('click', () => {
 		if (!loading) loadTracks(false);
 	});
 
 	// Первая загрузка
 	loadTracks(true);
 
-	// ─── Загрузка треков ───────────────────────────────────────────────────────
 	async function loadTracks(reset) {
 		if (loading) return;
 		loading = true;
 
-		const grid = document.getElementById('track-grid');
-		const emptyMsg = document.getElementById('feed-empty');
-		const errorMsg = document.getElementById('feed-error');
-		const moreBtn = document.getElementById('feed-load-more');
+		const grid = container.querySelector('#track-grid');
+		const emptyMsg = container.querySelector('#feed-empty');
+		const errorMsg = container.querySelector('#feed-error');
+		const moreBtn = container.querySelector('#feed-load-more');
 
 		if (reset) {
 			lastDoc = null;
@@ -70,12 +76,13 @@ export function renderFeedView(container) {
 
 		try {
 			const sortField = currentSort === 'top' ? 'averageRating' : 'createdAt';
+
 			let q = query(
 				collection(db, 'tracks'),
 				orderBy(sortField, 'desc'),
 				limit(PAGE_SIZE)
 			);
-			if (lastDoc && !reset) {
+			if (!reset && lastDoc) {
 				q = query(
 					collection(db, 'tracks'),
 					orderBy(sortField, 'desc'),
@@ -97,10 +104,7 @@ export function renderFeedView(container) {
 
 			snap.forEach(d => {
 				const track = { id: d.id, ...d.data() };
-				const card = document.createElement('div');
-				card.innerHTML = renderTrackCard(track);
-				const el = card.firstElementChild;
-				if (el) grid.appendChild(el);
+				grid.appendChild(TrackCard(track));
 			});
 
 			lastDoc = snap.docs[snap.docs.length - 1];
@@ -115,9 +119,10 @@ export function renderFeedView(container) {
 			loading = false;
 		}
 	}
+
+	return { element: container };
 }
 
-// ─── Вспомогательные ─────────────────────────────────────────────────────────
 function skeletonCards(n) {
 	return Array(n).fill(`
     <div class="track-card track-card--skeleton">

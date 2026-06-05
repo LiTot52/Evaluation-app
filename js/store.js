@@ -215,15 +215,15 @@ export async function rateTrack(trackId, scores) {
 		...scores, total, ratedAt: new Date(),
 	});
 
-	await _recalcTrack(trackId);
-	return total;
+	// Пересчитываем и возвращаем актуальные данные трека
+	return await _recalcTrack(trackId);
 }
 
 async function _recalcTrack(trackId) {
 	const snap = await getDocs(
 		query(collection(db, 'ratings'), where('trackId', '==', trackId))
 	);
-	if (snap.empty) return;
+	if (snap.empty) return null;
 
 	const all = snap.docs.map(d => d.data());
 	const count = all.length;
@@ -242,6 +242,8 @@ async function _recalcTrack(trackId) {
 	await updateDoc(doc(db, 'tracks', trackId), {
 		averageRating: avg, totalRatings: count, ratingBreakdown: breakdown,
 	});
+
+	return { averageRating: avg, totalRatings: count, ratingBreakdown: breakdown };
 }
 
 console.log('%c✅ Store ready', 'color:#e8ff47;font-weight:bold');
