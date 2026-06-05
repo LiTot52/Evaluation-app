@@ -7,24 +7,24 @@ import { RatingWidget } from '../components/RatingWidget.js';
 import { formatTime } from '../utils.js';
 
 export async function TrackView(trackId) {
-	const container = document.createElement('div');
-	container.className = 'page';
+  const container = document.createElement('div');
+  container.className = 'page';
 
-	const track = await getTrackById(trackId);
+  const track = await getTrackById(trackId);
 
-	if (!track) {
-		container.innerHTML = `
+  if (!track) {
+    container.innerHTML = `
       <div class="empty-state" style="padding-top:200px">
         <div class="empty-state-icon">❌</div>
         <h2 class="empty-state-title">Трек не найден</h2>
         <a href="#feed" class="btn btn--ghost" style="margin-top:8px">На главную</a>
       </div>`;
-		return { element: container };
-	}
+    return { element: container };
+  }
 
-	const breakdownRows = CRITERIA.map(({ key, label }) => {
-		const val = track.ratingBreakdown?.[key] || 0;
-		return `
+  const breakdownRows = CRITERIA.map(({ key, label }) => {
+    const val = track.ratingBreakdown?.[key] || 0;
+    return `
       <div class="criteria-row">
         <div class="criteria-label">${label}</div>
         <div class="criteria-bar-wrap">
@@ -32,11 +32,11 @@ export async function TrackView(trackId) {
         </div>
         <div class="criteria-val">${val.toFixed(1)}</div>
       </div>`;
-	}).join('');
+  }).join('');
 
-	const isOwn = currentUser?.uid === track.uploadedBy;
+  const isOwn = currentUser?.uid === track.uploadedBy;
 
-	container.innerHTML = `
+  container.innerHTML = `
     <div class="track-page">
 
       <!-- ЛЕВАЯ КОЛОНКА -->
@@ -101,40 +101,40 @@ export async function TrackView(trackId) {
       </div>
     </div>`;
 
-	// ── Плеер ──
-	const audio = new Audio(track.audioUrl);
-	const playBtn = container.querySelector('#play-btn');
-	const progBar = container.querySelector('#progress-bar');
-	const progFill = container.querySelector('#progress-fill');
-	const curTime = container.querySelector('#cur-time');
-	const durTime = container.querySelector('#dur-time');
-	const volSlid = container.querySelector('#vol-slider');
+  // ── Плеер ──
+  const audio = new Audio(track.audioUrl);
+  const playBtn = container.querySelector('#play-btn');
+  const progBar = container.querySelector('#progress-bar');
+  const progFill = container.querySelector('#progress-fill');
+  const curTime = container.querySelector('#cur-time');
+  const durTime = container.querySelector('#dur-time');
+  const volSlid = container.querySelector('#vol-slider');
 
-	playBtn.addEventListener('click', () => {
-		audio.paused ? (audio.play(), playBtn.textContent = '⏸') : (audio.pause(), playBtn.textContent = '▶');
-	});
-	audio.addEventListener('loadedmetadata', () => { durTime.textContent = formatTime(audio.duration); });
-	audio.addEventListener('timeupdate', () => {
-		curTime.textContent = formatTime(audio.currentTime);
-		progFill.style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0) + '%';
-	});
-	audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
-	progBar.addEventListener('click', e => {
-		const r = progBar.getBoundingClientRect();
-		audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
-	});
-	volSlid.addEventListener('input', e => { audio.volume = e.target.value / 100; });
+  playBtn.addEventListener('click', () => {
+    audio.paused ? (audio.play(), playBtn.textContent = '⏸') : (audio.pause(), playBtn.textContent = '▶');
+  });
+  audio.addEventListener('loadedmetadata', () => { durTime.textContent = formatTime(audio.duration); });
+  audio.addEventListener('timeupdate', () => {
+    curTime.textContent = formatTime(audio.currentTime);
+    progFill.style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0) + '%';
+  });
+  audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+  progBar.addEventListener('click', e => {
+    const r = progBar.getBoundingClientRect();
+    audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+  });
+  volSlid.addEventListener('input', e => { audio.volume = e.target.value / 100; });
 
-	// ── Виджет оценки ──
-	const rw = container.querySelector('#rating-widget-container');
-	rw.appendChild(await RatingWidget(trackId, (newAvg, newCount) => {
-		container.querySelector('#avg-score').textContent = newAvg.toFixed(1);
-		container.querySelector('#total-count').textContent = `${newCount} оценок`;
-		container.querySelector('#rating-tag').textContent = `⭐ ${newCount} оценок`;
-	}));
+  // ── Виджет оценки ──
+  const rw = container.querySelector('#rating-widget-container');
+  rw.appendChild(await RatingWidget(trackId, (newAvg, newCount) => {
+    container.querySelector('#avg-score').textContent = newAvg.toFixed(1);
+    container.querySelector('#total-count').textContent = `${newCount} оценок`;
+    container.querySelector('#rating-tag').textContent = `⭐ ${newCount} оценок`;
+  }));
 
-	return {
-		element: container,
-		cleanup: () => audio.pause(),
-	};
+  return {
+    element: container,
+    cleanup: () => audio.pause(),
+  };
 }

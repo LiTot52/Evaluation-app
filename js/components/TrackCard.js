@@ -5,14 +5,14 @@
 import { goToView } from '../router.js';
 
 export function TrackCard(track) {
-	const el = document.createElement('a');
-	el.className = 'track-card';
-	el.href = `#track/${track.id}`;
+  const el = document.createElement('a');
+  el.className = 'track-card';
+  el.href = `#track/${track.id}`;
 
-	const rating = track.averageRating || 0;
-	const hasRating = track.totalRatings > 0;
+  const rating = track.averageRating || 0;
+  const hasRating = track.totalRatings > 0;
 
-	el.innerHTML = `
+  el.innerHTML = `
     <div class="track-card-cover-placeholder"
       ${track.coverUrl ? `style="background:url('${track.coverUrl}') center/cover;background-size:cover;"` : ''}>
       ${track.coverUrl ? '' : '🎵'}
@@ -42,12 +42,12 @@ export function TrackCard(track) {
       </div>
     </div>`;
 
-	el.addEventListener('click', e => {
-		// Не перехватывать клик по ссылке на профиль
-		if (e.target.closest('.track-card-author')) return;
-		e.preventDefault();
-		goToView('track', track.id);
-	});
+  el.addEventListener('click', e => {
+    // Не перехватывать клик по ссылке на профиль
+    if (e.target.closest('.track-card-author')) return;
+    e.preventDefault();
+    goToView('track', track.id);
+  });
 
-	return el;
+  return el;
 }
