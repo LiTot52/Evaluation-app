@@ -2,7 +2,7 @@
 //   STORE.JS
 // ══════════════════════════════════════════
 
-import { auth, db, storage } from './firebase-config.js';
+import { auth, db } from './firebase-config.js';
 import {
 	signInWithEmailAndPassword, createUserWithEmailAndPassword,
 	signOut, onAuthStateChanged, GoogleAuthProvider,
@@ -12,9 +12,12 @@ import {
 	collection, doc, getDoc, setDoc, getDocs,
 	addDoc, query, where, onSnapshot, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import {
-	ref as storageRef, uploadBytesResumable, getDownloadURL,
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+// ─────────────────────────────────────────
+// CLOUDINARY CONFIG
+// ─────────────────────────────────────────
+const CLOUDINARY_CLOUD_NAME = 'dyc4rspmf';
+const CLOUDINARY_UPLOAD_PRESET = 'default';
 
 // ─────────────────────────────────────────
 // СОСТОЯНИЕ
@@ -145,26 +148,20 @@ export async function getUserById(uid) {
 }
 
 // ─────────────────────────────────────────
-// ЗАГРУЗКА
+// ЗАГРУЗКА (Cloudinary)
 // ─────────────────────────────────────────
 export async function uploadTrack({ title, artist, genre, description, audioFile, coverFile }, onProgress) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
-	const trackId = `track_${Date.now()}_${currentUser.uid}`;
+	onProgress?.('audio', 0);
+	const audioUrl = await _uploadToCloudinary(audioFile, 'video', (p) => {
+		onProgress?.('audio', p);
+	});
 
-	// Загружаем аудио (0–50% прогресса)
-	const audioUrl = await _uploadFile(
-		storageRef(storage, `tracks/${trackId}/audio`),
-		audioFile,
-		(p) => onProgress?.('audio', p)
-	);
-
-	// Загружаем обложку (0–100% прогресса)
-	const coverUrl = await _uploadFile(
-		storageRef(storage, `tracks/${trackId}/cover`),
-		coverFile,
-		(p) => onProgress?.('cover', p)
-	);
+	onProgress?.('cover', 0);
+	const coverUrl = await _uploadToCloudinary(coverFile, 'image', (p) => {
+		onProgress?.('cover', p);
+	});
 
 	const breakdown = Object.fromEntries(CRITERIA.map(c => [c.key, 0]));
 	const trackData = {
@@ -184,7 +181,6 @@ export async function uploadTrack({ title, artist, genre, description, audioFile
 
 	const docRef = await addDoc(collection(db, 'tracks'), trackData);
 
-	// Обновляем счётчик загрузок пользователя
 	try {
 		const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
 		if (uSnap.exists()) {
@@ -199,35 +195,53 @@ export async function uploadTrack({ title, artist, genre, description, audioFile
 	return { id: docRef.id, ...trackData };
 }
 
-function _uploadFile(fileRef, file, onProgress) {
+// Загрузка файла на Cloudinary через XMLHttpRequest (с прогрессом)
+function _uploadToCloudinary(file, resourceType, onProgress) {
 	return new Promise((resolve, reject) => {
-		const task = uploadBytesResumable(fileRef, file);
-		task.on(
-			'state_changed',
-			(snapshot) => {
-				const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+		formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
+
+		const xhr = new XMLHttpRequest();
+		const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+
+		xhr.open('POST', url, true);
+
+		xhr.upload.addEventListener('progress', (e) => {
+			if (e.lengthComputable) {
+				const pct = Math.round((e.loaded / e.total) * 100);
 				onProgress?.(pct);
-			},
-			(error) => {
-				console.error('Upload error:', error.code, error.message);
-				// Понятные сообщения об ошибках
-				if (error.code === 'storage/unauthorized') {
-					reject(new Error('Нет доступа к хранилищу. Проверьте правила Firebase Storage.'));
-				} else if (error.code === 'storage/quota-exceeded') {
-					reject(new Error('Превышен лимит хранилища.'));
-				} else {
-					reject(new Error(`Ошибка загрузки: ${error.message}`));
-				}
-			},
-			async () => {
+			}
+		});
+
+		xhr.addEventListener('load', () => {
+			if (xhr.status === 200) {
 				try {
-					const url = await getDownloadURL(task.snapshot.ref);
-					resolve(url);
-				} catch (e) {
-					reject(e);
+					const data = JSON.parse(xhr.responseText);
+					resolve(data.secure_url);
+				} catch {
+					reject(new Error('Ошибка ответа Cloudinary'));
+				}
+			} else {
+				try {
+					const err = JSON.parse(xhr.responseText);
+					reject(new Error(`Cloudinary: ${err.error?.message || xhr.status}`));
+				} catch {
+					reject(new Error(`Ошибка загрузки: ${xhr.status}`));
 				}
 			}
-		);
+		});
+
+		xhr.addEventListener('error', () => {
+			reject(new Error('Ошибка сети при загрузке на Cloudinary'));
+		});
+
+		xhr.addEventListener('abort', () => {
+			reject(new Error('Загрузка отменена'));
+		});
+
+		xhr.send(formData);
 	});
 }
 
@@ -281,4 +295,4 @@ async function _recalcTrack(trackId) {
 	return { averageRating: avg, totalRatings: count, ratingBreakdown: breakdown };
 }
 
-console.log('%c✅ Store ready', 'color:#e8ff47;font-weight:bold');
+console.log('%c✅ Store ready (Cloudinary)', 'color:#e8ff47;font-weight:bold');
