@@ -168,7 +168,7 @@ export async function getTopTracks(n = 20) {
 // ─────────────────────────────────────────
 // РЕДАКТИРОВАНИЕ ТРЕКА (название, обложка)
 // ─────────────────────────────────────────
-export async function updateTrackInfo(trackId, { title, featArtists, coverFile } = {}) {
+export async function updateTrackInfo(trackId, { title, featArtists, genre, coverFile, audioFile } = {}) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
 	const snap = await getDoc(doc(db, 'tracks', trackId));
@@ -178,9 +178,13 @@ export async function updateTrackInfo(trackId, { title, featArtists, coverFile }
 	const updates = {};
 	if (title !== undefined) updates.title = title;
 	if (featArtists !== undefined) updates.featArtists = featArtists;
+	if (genre !== undefined) updates.genre = genre;
 
 	if (coverFile) {
 		updates.coverUrl = await _uploadToCloudinary(coverFile, 'image', null);
+	}
+	if (audioFile) {
+		updates.audioUrl = await _uploadToCloudinary(audioFile, 'video', null);
 	}
 
 	await updateDoc(doc(db, 'tracks', trackId), updates);

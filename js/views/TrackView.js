@@ -6,6 +6,7 @@ import { getTrackById, CRITERIA, currentUser, updateTrackInfo, deleteTrack, GENR
 import { RatingWidget } from '../components/RatingWidget.js';
 import { formatTime, showToast } from '../utils.js';
 import { goToView } from '../router.js';
+import { playTrack, stop as stopGlobal, registerLocalCleanup } from '../player.js';
 
 export async function TrackView(trackId) {
   const container = document.createElement('div');
@@ -15,7 +16,7 @@ export async function TrackView(trackId) {
 
   if (!track) {
     container.innerHTML = `
-      <div class="empty-state" style="padding-top:200px">
+      <div class="empty-state" style="padding-top:160px">
         <div class="empty-state-icon">❌</div>
         <h2 class="empty-state-title">Трек не найден</h2>
         <a href="#feed" class="btn btn--ghost" style="margin-top:8px">На главную</a>
@@ -24,11 +25,7 @@ export async function TrackView(trackId) {
   }
 
   const isOwn = currentUser?.uid === track.uploadedBy;
-
-  // Фиты — строка вида "feat. Вася, Петя"
-  const featStr = track.featArtists?.length
-    ? ` feat. ${track.featArtists.join(', ')}`
-    : '';
+  const featStr = track.featArtists?.length ? ` feat. ${track.featArtists.join(', ')}` : '';
 
   const breakdownRows = CRITERIA.map(({ key, label }) => {
     const val = track.ratingBreakdown?.[key] || 0;
@@ -51,16 +48,10 @@ export async function TrackView(trackId) {
 
       <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="track-sidebar">
-
-        <!-- Обложка + кнопка смены (только автор) -->
         <div class="track-cover-placeholder" id="track-cover-wrap"
           style="${track.coverUrl ? `background:url('${track.coverUrl}') center/cover;` : ''}">
           ${track.coverUrl ? '' : '🎵'}
-          ${isOwn ? `
-            <label class="cover-change-btn" id="cover-label" title="Сменить обложку">
-              ✏️
-              <input type="file" id="cover-change-input" accept="image/*" style="display:none">
-            </label>` : ''}
+          ${isOwn ? `<label class="cover-change-btn" id="cover-label" title="Сменить обложку">✏️<input type="file" id="cover-change-input" accept="image/*" style="display:none"></label>` : ''}
         </div>
 
         <!-- Плеер -->
@@ -80,40 +71,53 @@ export async function TrackView(trackId) {
           </div>
         </div>
 
-        <!-- Разбивка оценок -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px">
-          <div class="section-label" style="margin-bottom:14px">Разбивка оценок</div>
+        <!-- Разбивка -->
+        <div class="track-breakdown">
+          <div class="section-label" style="margin-bottom:12px">Разбивка оценок</div>
           ${breakdownRows}
         </div>
 
-        <!-- Удалить трек (только автор) -->
-        ${isOwn ? `
-          <button class="btn btn--danger btn--full" id="btn-delete-track">🗑 Удалить трек</button>
-        ` : ''}
+        ${isOwn ? `<button class="btn btn--danger btn--full" id="btn-delete-track">Удалить трек</button>` : ''}
       </div>
 
       <!-- ПРАВАЯ КОЛОНКА -->
       <div class="track-main">
         <div class="track-info">
-
-          <!-- Название + редактирование -->
           <div class="track-title-row">
-            <h1 class="track-info-title" id="track-title-display">${track.title}${featStr ? `<span class="feat-str">${featStr}</span>` : ''}</h1>
-            ${isOwn ? `<button class="btn-icon" id="btn-edit-track" title="Редактировать">✏️</button>` : ''}
+            <h1 class="track-info-title" id="track-title-display">
+              ${track.title}${featStr ? `<span class="feat-str">${featStr}</span>` : ''}
+            </h1>
+            ${isOwn ? `<button class="btn-icon" id="btn-edit-track">✏️</button>` : ''}
           </div>
 
-          <!-- Форма редактирования (скрыта) -->
+          <!-- Форма редактирования -->
           ${isOwn ? `
-            <div id="track-edit-form" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-top:12px">
-              <div class="field" style="margin-bottom:12px">
+            <div id="track-edit-form" style="display:none" class="track-edit-panel">
+              <div class="field">
                 <label class="field-label">Название</label>
-                <input class="field-input" id="edit-title-input" type="text" value="${track.title}">
+                <input class="field-input" id="edit-title" type="text" value="${track.title}">
               </div>
-              <div class="field" style="margin-bottom:12px">
+              <div class="field">
                 <label class="field-label">Фит (через запятую)</label>
-                <input class="field-input" id="edit-feat-input" type="text"
+                <input class="field-input" id="edit-feat" type="text"
                   value="${(track.featArtists || []).join(', ')}"
                   placeholder="Vasya, Petya">
+              </div>
+              <div class="field">
+                <label class="field-label">Жанр</label>
+                <div class="select-wrapper">
+                  <select class="field-select" id="edit-genre">${genreOptions}</select>
+                  <span class="select-arrow">▾</span>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Заменить аудио (необязательно)</label>
+                <div class="file-drop file-drop--sm" id="audio-edit-drop">
+                  <div class="file-drop-icon">🎵</div>
+                  <div class="file-drop-text">Перетащите или <strong>нажмите</strong></div>
+                  <input type="file" id="audio-edit-input" accept="audio/*">
+                </div>
+                <p class="field-hint" id="audio-edit-hint"></p>
               </div>
               <div style="display:flex;gap:8px;margin-top:4px">
                 <button class="btn btn--primary btn--sm" id="btn-save-track">Сохранить</button>
@@ -121,19 +125,17 @@ export async function TrackView(trackId) {
               </div>
             </div>` : ''}
 
-          <div class="track-info-author" style="margin:10px 0 16px;display:flex;align-items:center;gap:8px">
-            <span style="color:var(--text-2)">👤</span>
-            <a href="#profile/${track.uploadedBy}" style="color:var(--text-2);transition:color .15s"
-               onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-2)'">
+          <div class="track-info-author">
+            <a href="#profile/${track.uploadedBy}" class="track-author-link">
               ${track.uploadedByName || track.artist || 'Неизвестно'}
             </a>
             ${isOwn ? '<span class="own-badge">Мой трек</span>' : ''}
           </div>
 
-          ${track.description ? `<p style="color:var(--text-2);line-height:1.8;margin-bottom:16px">${track.description}</p>` : ''}
+          ${track.description ? `<p class="track-description">${track.description}</p>` : ''}
 
           <div class="track-info-tags">
-            ${track.genre ? `<span class="tag">🎸 ${track.genre}</span>` : ''}
+            ${track.genre ? `<span class="tag" id="genre-tag">🎸 ${track.genre}</span>` : ''}
             <span class="tag" id="rating-tag">⭐ ${track.totalRatings || 0} оценок</span>
           </div>
         </div>
@@ -142,7 +144,7 @@ export async function TrackView(trackId) {
           <div class="track-total-score-num" id="avg-score">
             ${track.averageRating ? track.averageRating.toFixed(1) : '—'}
           </div>
-          <div class="track-total-score-info">
+          <div>
             <div class="track-total-score-title">Средняя оценка</div>
             <div class="track-total-score-count" id="total-count">${track.totalRatings || 0} оценок</div>
           </div>
@@ -152,7 +154,8 @@ export async function TrackView(trackId) {
       </div>
     </div>`;
 
-  // ── Плеер ──
+  // ── Локальный плеер ──
+  let localAudioFile = null;
   const audio = new Audio(track.audioUrl);
   const playBtn = container.querySelector('#play-btn');
   const progBar = container.querySelector('#progress-bar');
@@ -162,7 +165,8 @@ export async function TrackView(trackId) {
   const volSlid = container.querySelector('#vol-slider');
 
   playBtn.addEventListener('click', () => {
-    audio.paused ? (audio.play(), playBtn.textContent = '⏸') : (audio.pause(), playBtn.textContent = '▶');
+    if (audio.paused) { audio.play(); playBtn.textContent = '⏸'; }
+    else { audio.pause(); playBtn.textContent = '▶'; }
   });
   audio.addEventListener('loadedmetadata', () => { durTime.textContent = formatTime(audio.duration); });
   audio.addEventListener('timeupdate', () => {
@@ -184,25 +188,53 @@ export async function TrackView(trackId) {
     container.querySelector('#rating-tag').textContent = `⭐ ${newCount} оценок`;
   }));
 
-  if (!isOwn) return { element: container, cleanup: () => audio.pause() };
+  if (!isOwn) return {
+    element: container,
+    cleanup: () => audio.pause(),
+  };
 
-  // ── Редактирование названия / фитов ──
-  const btnEdit = container.querySelector('#btn-edit-track');
-  const editForm = container.querySelector('#track-edit-form');
-  const titleDisp = container.querySelector('#track-title-display');
-
-  btnEdit.addEventListener('click', () => {
-    editForm.style.display = editForm.style.display === 'none' ? 'block' : 'none';
+  // ── Редактирование ──
+  container.querySelector('#btn-edit-track').addEventListener('click', () => {
+    const form = container.querySelector('#track-edit-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  });
+  container.querySelector('#btn-cancel-track').addEventListener('click', () => {
+    container.querySelector('#track-edit-form').style.display = 'none';
   });
 
-  container.querySelector('#btn-cancel-track').addEventListener('click', () => {
-    editForm.style.display = 'none';
+  // Drag-drop для аудио в форме редактирования
+  const audioDrop = container.querySelector('#audio-edit-drop');
+  const audioInput = container.querySelector('#audio-edit-input');
+  const audioHint = container.querySelector('#audio-edit-hint');
+
+  audioDrop.addEventListener('click', () => audioInput.click());
+  audioInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (!f.type.startsWith('audio/')) { showToast('Нужен аудиофайл', 'error'); return; }
+    localAudioFile = f;
+    audioHint.textContent = `✓ ${f.name}`;
+    audioHint.style.color = 'var(--accent)';
+    audioDrop.querySelector('.file-drop-icon').textContent = '✅';
+  });
+  audioDrop.addEventListener('dragover', e => { e.preventDefault(); audioDrop.classList.add('drag-over'); });
+  audioDrop.addEventListener('dragleave', () => audioDrop.classList.remove('drag-over'));
+  audioDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    audioDrop.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (!f || !f.type.startsWith('audio/')) { showToast('Нужен аудиофайл', 'error'); return; }
+    localAudioFile = f;
+    audioHint.textContent = `✓ ${f.name}`;
+    audioHint.style.color = 'var(--accent)';
+    audioDrop.querySelector('.file-drop-icon').textContent = '✅';
   });
 
   container.querySelector('#btn-save-track').addEventListener('click', async () => {
     const saveBtn = container.querySelector('#btn-save-track');
-    const newTitle = container.querySelector('#edit-title-input').value.trim();
-    const featRaw = container.querySelector('#edit-feat-input').value.trim();
+    const newTitle = container.querySelector('#edit-title').value.trim();
+    const featRaw = container.querySelector('#edit-feat').value.trim();
+    const newGenre = container.querySelector('#edit-genre').value;
     const featList = featRaw ? featRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
     if (!newTitle) { showToast('Название не может быть пустым', 'error'); return; }
@@ -210,11 +242,29 @@ export async function TrackView(trackId) {
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Сохранение...';
-      await updateTrackInfo(trackId, { title: newTitle, featArtists: featList });
 
-      const newFeatStr = featList.length ? ` feat. ${featList.join(', ')}` : '';
-      titleDisp.innerHTML = newTitle + (newFeatStr ? `<span class="feat-str">${newFeatStr}</span>` : '');
-      editForm.style.display = 'none';
+      const updates = await updateTrackInfo(trackId, {
+        title: newTitle,
+        featArtists: featList,
+        genre: newGenre,
+        audioFile: localAudioFile || undefined,
+      });
+
+      // Обновляем UI
+      const newFeat = featList.length ? ` feat. ${featList.join(', ')}` : '';
+      container.querySelector('#track-title-display').innerHTML =
+        newTitle + (newFeat ? `<span class="feat-str">${newFeat}</span>` : '');
+      container.querySelector('#genre-tag').textContent = `🎸 ${newGenre}`;
+
+      if (updates.audioUrl) {
+        audio.src = updates.audioUrl;
+        audio.load();
+        localAudioFile = null;
+        audioHint.textContent = '';
+        audioDrop.querySelector('.file-drop-icon').textContent = '🎵';
+      }
+
+      container.querySelector('#track-edit-form').style.display = 'none';
       showToast('Трек обновлён ✓', 'success');
     } catch (err) {
       showToast('Ошибка: ' + err.message, 'error');
@@ -225,38 +275,39 @@ export async function TrackView(trackId) {
   });
 
   // ── Смена обложки ──
-  const coverInput = container.querySelector('#cover-change-input');
-  coverInput?.addEventListener('change', async (e) => {
+  container.querySelector('#cover-change-input')?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const label = container.querySelector('#cover-label');
-    label.textContent = '⏳';
+    label.childNodes[0].textContent = '⏳';
     try {
       const updates = await updateTrackInfo(trackId, { coverFile: file });
       const wrap = container.querySelector('#track-cover-wrap');
       wrap.style.background = `url('${updates.coverUrl}') center/cover`;
-      wrap.textContent = '';
-      wrap.appendChild(label);
-      label.innerHTML = '✏️<input type="file" id="cover-change-input" accept="image/*" style="display:none">';
+      wrap.firstChild.textContent = '';
+      label.childNodes[0].textContent = '✏️';
       showToast('Обложка обновлена ✓', 'success');
     } catch (err) {
       showToast('Ошибка: ' + err.message, 'error');
-      label.innerHTML = '✏️<input type="file" id="cover-change-input" accept="image/*" style="display:none">';
+      label.childNodes[0].textContent = '✏️';
     }
   });
 
-  // ── Удаление трека ──
+  // ── Удаление ──
   container.querySelector('#btn-delete-track')?.addEventListener('click', async () => {
-    if (!confirm(`Удалить трек «${track.title}»? Это нельзя отменить.`)) return;
+    if (!confirm(`Удалить трек «${track.title}»?`)) return;
     try {
       await deleteTrack(trackId);
-      showToast('Трек удалён', 'success');
       audio.pause();
+      showToast('Трек удалён', 'success');
       goToView('feed');
     } catch (err) {
       showToast('Ошибка: ' + err.message, 'error');
     }
   });
 
-  return { element: container, cleanup: () => audio.pause() };
+  return {
+    element: container,
+    cleanup: () => audio.pause(),
+  };
 }

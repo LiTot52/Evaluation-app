@@ -60,9 +60,12 @@ export async function UploadView() {
             <div class="select-wrapper">
               <select class="field-select" id="f-genre">
                 ${genreOptions}
+                <option value="__custom__">Другой (написать)</option>
               </select>
               <span class="select-arrow">▾</span>
             </div>
+            <input class="field-input" type="text" id="f-genre-custom"
+              placeholder="Введите жанр" style="display:none;margin-top:8px">
           </div>
 
           <div class="field">
@@ -115,6 +118,14 @@ export async function UploadView() {
         </div>
       </div>
     </div>`;
+
+	// ── Кастомный жанр ──
+	const genreSelect = container.querySelector('#f-genre');
+	const genreCustom = container.querySelector('#f-genre-custom');
+	genreSelect.addEventListener('change', () => {
+		genreCustom.style.display = genreSelect.value === '__custom__' ? 'block' : 'none';
+		if (genreSelect.value === '__custom__') genreCustom.focus();
+	});
 
 	// ── File drop helpers ──
 	const makeDrop = (dropId, inputId, hintId, onFile) => {
@@ -182,12 +193,17 @@ export async function UploadView() {
 		const featRaw = container.querySelector('#f-feat').value.trim();
 		const featList = featRaw ? featRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+		// Жанр: выбранный или кастомный
+		const genreVal = genreSelect.value === '__custom__'
+			? (genreCustom.value.trim() || 'Другой')
+			: genreSelect.value;
+
 		try {
 			const track = await uploadTrack({
 				title: container.querySelector('#f-title').value.trim(),
 				artist: container.querySelector('#f-artist').value.trim(),
 				featArtists: featList,
-				genre: container.querySelector('#f-genre').value,
+				genre: genreVal,
 				description: container.querySelector('#f-desc').value.trim(),
 				audioFile, coverFile,
 			}, (stage, pct) => {

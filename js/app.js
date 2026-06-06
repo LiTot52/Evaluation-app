@@ -12,6 +12,7 @@ import {
 } from './store.js';
 import { initRouter, goToView } from './router.js';
 import { showToast } from './utils.js';
+import './player.js'; // инициализируем глобальный плеер
 
 // re-export для совместимости (некоторые файлы могут импортировать отсюда)
 export { showToast };
