@@ -4,7 +4,7 @@
 
 import { currentUser, addComment, getComments, deleteComment } from '../store.js';
 import { showToast } from '../utils.js';
-import { goToView } from '../router.js';
+import { Icons } from '../icons.js';
 
 function timeAgo(date) {
 	const d = date?.toDate?.() ?? new Date(date ?? 0);
@@ -15,11 +15,14 @@ function timeAgo(date) {
 	return `${Math.floor(s / 86400)} д`;
 }
 
-function renderComment(c, onDelete) {
+function _escape(str) {
+	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+}
+
+function renderComment(c) {
 	const el = document.createElement('div');
 	el.className = 'comment';
 	el.dataset.id = c.id;
-
 	const letter = (c.userName || '?')[0].toUpperCase();
 	const isOwn = currentUser?.uid === c.userId;
 
@@ -31,27 +34,18 @@ function renderComment(c, onDelete) {
 			<div class="comment-header">
 				<span class="comment-name">${c.userName || 'Аноним'}</span>
 				<span class="comment-time">${timeAgo(c.createdAt)}</span>
-				${isOwn ? `<button class="comment-delete" data-id="${c.id}" title="Удалить">✕</button>` : ''}
+				${isOwn ? `<button class="comment-delete" data-id="${c.id}">${Icons.close}</button>` : ''}
 			</div>
 			<p class="comment-text">${_escape(c.text)}</p>
 		</div>`;
 
 	if (isOwn) {
 		el.querySelector('.comment-delete').addEventListener('click', async () => {
-			try {
-				await deleteComment(c.id);
-				el.remove();
-			} catch (err) {
-				showToast('Ошибка: ' + err.message, 'error');
-			}
+			try { await deleteComment(c.id); el.remove(); }
+			catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
 		});
 	}
-
 	return el;
-}
-
-function _escape(str) {
-	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
 }
 
 export async function CommentsSection(trackId) {
@@ -86,62 +80,38 @@ export async function CommentsSection(trackId) {
 	const list = section.querySelector('#comments-list');
 	const countEl = section.querySelector('.comments-count');
 
-	// Рендерим комментарии
 	if (comments.length === 0) {
 		list.innerHTML = '<p class="comments-empty">Будь первым кто оставит комментарий</p>';
 	} else {
 		comments.forEach(c => list.appendChild(renderComment(c)));
 	}
 
-	// Автоматическое расширение textarea
 	const textarea = section.querySelector('#comment-input');
 	textarea?.addEventListener('input', () => {
 		textarea.style.height = 'auto';
 		textarea.style.height = textarea.scrollHeight + 'px';
 	});
 
-	// Отправка
 	section.querySelector('#comment-submit')?.addEventListener('click', async () => {
 		const text = textarea.value.trim();
 		if (!text) return;
-
 		const btn = section.querySelector('#comment-submit');
-		btn.disabled = true;
-		btn.textContent = '...';
-
+		btn.disabled = true; btn.textContent = '...';
 		try {
 			const comment = await addComment(trackId, text);
-			textarea.value = '';
-			textarea.style.height = 'auto';
-
-			// Убираем заглушку
-			const empty = list.querySelector('.comments-empty');
-			if (empty) empty.remove();
-
-			// Добавляем в конец
+			textarea.value = ''; textarea.style.height = 'auto';
+			list.querySelector('.comments-empty')?.remove();
 			list.appendChild(renderComment(comment));
 			list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-			// Обновляем счётчик
-			const cur = parseInt(countEl.textContent) || 0;
-			countEl.textContent = cur + 1;
-		} catch (err) {
-			showToast('Ошибка: ' + err.message, 'error');
-		} finally {
-			btn.disabled = false;
-			btn.textContent = 'Отправить';
-		}
+			countEl.textContent = (parseInt(countEl.textContent) || 0) + 1;
+		} catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+		finally { btn.disabled = false; btn.textContent = 'Отправить'; }
 	});
 
-	// Enter для отправки (Shift+Enter — новая строка)
 	textarea?.addEventListener('keydown', e => {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			section.querySelector('#comment-submit').click();
-		}
+		if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); section.querySelector('#comment-submit').click(); }
 	});
 
-	// Кнопка входа
 	section.querySelector('#comment-login-btn')?.addEventListener('click', () => {
 		document.getElementById('auth-modal').classList.add('open');
 	});
