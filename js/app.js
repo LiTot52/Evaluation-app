@@ -9,10 +9,13 @@ import {
 	registerUser,
 	loginWithGoogle,
 	logoutUser,
+	subscribeToNotifications,
+	getNotifications,
+	markNotificationsRead,
 } from './store.js';
 import { initRouter, goToView } from './router.js';
 import { showToast } from './utils.js';
-import './player.js'; // инициализируем глобальный плеер
+import './player.js';
 
 // re-export для совместимости (некоторые файлы могут импортировать отсюда)
 export { showToast };
@@ -30,9 +33,25 @@ export async function initApp() {
 // ─────────────────────────────────────────
 // AUTH HANDLERS
 // ─────────────────────────────────────────
+let _unsubNotif = null;
+
 async function handleAuthChange(user) {
 	console.log('Auth state changed:', user?.email || 'Not logged in');
 	updateHeaderUser(user);
+
+	// Уведомления
+	if (_unsubNotif) { _unsubNotif(); _unsubNotif = null; }
+	const notifBtn = document.getElementById('btn-notifications');
+	const notifBadge = document.getElementById('notif-badge');
+	if (user && notifBtn) {
+		notifBtn.style.display = 'flex';
+		_unsubNotif = subscribeToNotifications(count => {
+			notifBadge.style.display = count > 0 ? 'flex' : 'none';
+			notifBadge.textContent = count > 9 ? '9+' : count;
+		});
+	} else if (notifBtn) {
+		notifBtn.style.display = 'none';
+	}
 
 	const hash = window.location.hash.slice(1);
 	if (!user && hash === 'upload') {
@@ -207,7 +226,10 @@ function setupEventListeners() {
 		});
 	});
 
-	// Подсветка активной ссылки
+	// Уведомления
+	document.getElementById('btn-notifications')?.addEventListener('click', async () => {
+		await showNotificationsPanel();
+	});
 	const syncActiveNav = () => {
 		const hash = window.location.hash.slice(1).split('/')[0];
 		document.querySelectorAll('[data-route]').forEach(link => {
@@ -216,6 +238,68 @@ function setupEventListeners() {
 	};
 	window.addEventListener('hashchange', syncActiveNav);
 	syncActiveNav();
+}
+
+// ─────────────────────────────────────────
+// ПАНЕЛЬ УВЕДОМЛЕНИЙ
+// ─────────────────────────────────────────
+async function showNotificationsPanel() {
+	// Убираем старую панель
+	document.querySelector('.notif-panel')?.remove();
+
+	const panel = document.createElement('div');
+	panel.className = 'notif-panel';
+	panel.innerHTML = `
+		<div class="notif-panel-header">
+			<span class="notif-panel-title">Уведомления</span>
+			<button class="notif-panel-close" id="notif-close">✕</button>
+		</div>
+		<div class="notif-panel-list" id="notif-list">
+			<div class="loader" style="min-height:80px"><div class="loader-spinner"></div></div>
+		</div>`;
+
+	document.body.appendChild(panel);
+	panel.querySelector('#notif-close').addEventListener('click', () => panel.remove());
+	// Закрытие по клику вне
+	setTimeout(() => {
+		document.addEventListener('click', function close(e) {
+			if (!panel.contains(e.target) && e.target.id !== 'btn-notifications') {
+				panel.remove();
+				document.removeEventListener('click', close);
+			}
+		});
+	}, 50);
+
+	const notifs = await getNotifications();
+	await markNotificationsRead();
+	document.getElementById('notif-badge').style.display = 'none';
+
+	const list = panel.querySelector('#notif-list');
+	if (notifs.length === 0) {
+		list.innerHTML = '<p class="notif-empty">Нет уведомлений</p>';
+		return;
+	}
+
+	const icons = { rating: '⭐', comment: '💬' };
+	list.innerHTML = notifs.map(n => `
+		<div class="notif-item ${n.read ? '' : 'notif-item--unread'}" data-track="${n.trackId}">
+			<span class="notif-icon">${icons[n.type] || '🔔'}</span>
+			<div class="notif-body">
+				<div class="notif-text">
+					<strong>${n.fromName}</strong>
+					${n.type === 'rating' ? 'оценил твой трек' : 'прокомментировал'}
+					«${n.trackTitle}»
+				</div>
+				${n.text ? `<div class="notif-preview">${n.text}</div>` : ''}
+			</div>
+		</div>`).join('');
+
+	list.querySelectorAll('[data-track]').forEach(el => {
+		el.addEventListener('click', () => {
+			panel.remove();
+			goToView('track', el.dataset.track);
+		});
+	});
 }
 
 // ─────────────────────────────────────────

@@ -7,6 +7,7 @@ import { TrackView } from './views/TrackView.js';
 import { UploadView } from './views/UploadView.js';
 import { TopView } from './views/TopView.js';
 import { ProfileView } from './views/ProfileView.js';
+import { SearchView } from './views/SearchView.js';
 
 let _cleanup = null;
 
@@ -37,6 +38,7 @@ async function _route() {
 			case 'upload': result = await UploadView(); break;
 			case 'top': result = await TopView(); break;
 			case 'profile': result = id ? await ProfileView(id) : (goToView('feed'), null); break;
+			case 'search': result = await SearchView(id || ''); break;
 			default: result = await FeedView(); break;
 		}
 		if (!result) return;

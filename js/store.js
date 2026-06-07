@@ -349,7 +349,9 @@ export async function rateTrack(trackId, scores) {
 		...scores, total, ratedAt: new Date(),
 	});
 
-	return await _recalcTrack(trackId);
+	const result = await _recalcTrack(trackId);
+	_notifyRated(trackId); // fire-and-forget
+	return result;
 }
 
 async function _recalcTrack(trackId) {
@@ -380,3 +382,172 @@ async function _recalcTrack(trackId) {
 }
 
 console.log('%c✅ Store ready (Cloudinary)', 'color:#e8ff47;font-weight:bold');
+
+// ─────────────────────────────────────────
+// ЛАЙКИ
+// ─────────────────────────────────────────
+export async function likeTrack(trackId) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+	const likeId = `${currentUser.uid}_${trackId}`;
+	const ref = doc(db, 'likes', likeId);
+	const snap = await getDoc(ref);
+	if (snap.exists()) {
+		await deleteDoc(ref);
+		await updateDoc(doc(db, 'tracks', trackId), {
+			likesCount: Math.max(0, (await getDoc(doc(db, 'tracks', trackId))).data().likesCount - 1)
+		});
+		return false; // unliked
+	} else {
+		await setDoc(ref, { trackId, userId: currentUser.uid, createdAt: new Date() });
+		const tSnap = await getDoc(doc(db, 'tracks', trackId));
+		await updateDoc(doc(db, 'tracks', trackId), {
+			likesCount: (tSnap.data().likesCount || 0) + 1
+		});
+		return true; // liked
+	}
+}
+
+export async function isLiked(trackId) {
+	if (!currentUser) return false;
+	const snap = await getDoc(doc(db, 'likes', `${currentUser.uid}_${trackId}`));
+	return snap.exists();
+}
+
+// ─────────────────────────────────────────
+// КОММЕНТАРИИ
+// ─────────────────────────────────────────
+export async function addComment(trackId, text) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+	if (!text.trim()) throw new Error('Комментарий не может быть пустым');
+
+	const ref = await addDoc(collection(db, 'comments'), {
+		trackId,
+		userId: currentUser.uid,
+		userName: currentUser.displayName || currentUser.email.split('@')[0],
+		userAvatar: currentUser.photoURL || null,
+		text: text.trim(),
+		createdAt: new Date(),
+	});
+
+	// Уведомление автору трека (если комментирует не сам автор)
+	const tSnap = await getDoc(doc(db, 'tracks', trackId));
+	if (tSnap.exists() && tSnap.data().uploadedBy !== currentUser.uid) {
+		await addDoc(collection(db, 'notifications'), {
+			toUid: tSnap.data().uploadedBy,
+			fromUid: currentUser.uid,
+			fromName: currentUser.displayName || currentUser.email.split('@')[0],
+			type: 'comment',
+			trackId,
+			trackTitle: tSnap.data().title,
+			text: text.trim().slice(0, 80),
+			read: false,
+			createdAt: new Date(),
+		});
+	}
+
+	return {
+		id: ref.id, trackId, userId: currentUser.uid,
+		userName: currentUser.displayName || currentUser.email.split('@')[0],
+		userAvatar: currentUser.photoURL || null,
+		text: text.trim(), createdAt: new Date()
+	};
+}
+
+export async function getComments(trackId) {
+	const snap = await getDocs(
+		query(collection(db, 'comments'), where('trackId', '==', trackId))
+	);
+	return snap.docs
+		.map(d => ({ id: d.id, ...d.data() }))
+		.sort((a, b) => {
+			const ta = a.createdAt?.toDate?.() ?? new Date(a.createdAt ?? 0);
+			const tb = b.createdAt?.toDate?.() ?? new Date(b.createdAt ?? 0);
+			return ta - tb;
+		});
+}
+
+export async function deleteComment(commentId) {
+	if (!currentUser) throw new Error('Нужно войти в аккаунт');
+	const snap = await getDoc(doc(db, 'comments', commentId));
+	if (!snap.exists()) throw new Error('Комментарий не найден');
+	if (snap.data().userId !== currentUser.uid) throw new Error('Нет прав');
+	await deleteDoc(doc(db, 'comments', commentId));
+}
+
+// ─────────────────────────────────────────
+// УВЕДОМЛЕНИЯ
+// ─────────────────────────────────────────
+export async function getNotifications() {
+	if (!currentUser) return [];
+	const snap = await getDocs(
+		query(collection(db, 'notifications'), where('toUid', '==', currentUser.uid))
+	);
+	return snap.docs
+		.map(d => ({ id: d.id, ...d.data() }))
+		.sort((a, b) => {
+			const ta = a.createdAt?.toDate?.() ?? new Date(a.createdAt ?? 0);
+			const tb = b.createdAt?.toDate?.() ?? new Date(b.createdAt ?? 0);
+			return tb - ta;
+		});
+}
+
+export async function markNotificationsRead() {
+	if (!currentUser) return;
+	const snap = await getDocs(
+		query(collection(db, 'notifications'),
+			where('toUid', '==', currentUser.uid),
+			where('read', '==', false))
+	);
+	await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
+}
+
+export function subscribeToNotifications(callback) {
+	if (!currentUser) return () => { };
+	return onSnapshot(
+		query(collection(db, 'notifications'),
+			where('toUid', '==', currentUser.uid),
+			where('read', '==', false)),
+		snap => callback(snap.size),
+		err => console.warn('notifications subscribe error:', err)
+	);
+}
+
+// ─────────────────────────────────────────
+// ПОИСК
+// ─────────────────────────────────────────
+export async function searchTracks(q) {
+	if (!q.trim()) return [];
+	const snap = await getDocs(collection(db, 'tracks'));
+	const lower = q.toLowerCase();
+	return snap.docs
+		.map(d => ({ id: d.id, ...d.data() }))
+		.filter(t =>
+			t.title?.toLowerCase().includes(lower) ||
+			t.uploadedByName?.toLowerCase().includes(lower) ||
+			t.artist?.toLowerCase().includes(lower) ||
+			t.genre?.toLowerCase().includes(lower) ||
+			t.featArtists?.some(f => f.toLowerCase().includes(lower))
+		)
+		.slice(0, 40);
+}
+
+// Уведомление при оценке (вызывается из rateTrack)
+async function _notifyRated(trackId) {
+	try {
+		const tSnap = await getDoc(doc(db, 'tracks', trackId));
+		if (!tSnap.exists()) return;
+		const owner = tSnap.data().uploadedBy;
+		if (owner === currentUser.uid) return;
+		await addDoc(collection(db, 'notifications'), {
+			toUid: owner,
+			fromUid: currentUser.uid,
+			fromName: currentUser.displayName || currentUser.email.split('@')[0],
+			type: 'rating',
+			trackId,
+			trackTitle: tSnap.data().title,
+			text: '',
+			read: false,
+			createdAt: new Date(),
+		});
+	} catch (e) { console.warn('notify error', e); }
+}
