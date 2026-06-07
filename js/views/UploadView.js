@@ -73,6 +73,14 @@ export async function UploadView() {
             <textarea class="field-textarea" id="f-desc" placeholder="Расскажи о треке..."></textarea>
           </div>
 
+          <div class="field">
+            <label class="field-label">Текст песни <span style="color:var(--text-3);font-weight:400">(необязательно)</span></label>
+            <textarea class="field-textarea field-textarea--lyrics" id="f-lyrics"
+              placeholder="Вставьте текст песни — слушатели смогут читать его во время прослушивания..."
+              rows="8"></textarea>
+            <p class="field-hint">Используй пустую строку для разделения куплетов и припевов</p>
+          </div>
+
           <!-- Аудио -->
           <div class="field">
             <label class="field-label">Аудиофайл (MP3 / WAV) *</label>
@@ -205,6 +213,7 @@ export async function UploadView() {
 				featArtists: featList,
 				genre: genreVal,
 				description: container.querySelector('#f-desc').value.trim(),
+				lyrics: container.querySelector('#f-lyrics').value.trim(),
 				audioFile, coverFile,
 			}, (stage, pct) => {
 				progLabel.textContent = stage === 'audio' ? 'Загрузка аудио...' : 'Загрузка обложки...';

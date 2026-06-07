@@ -143,6 +143,11 @@ export async function TrackView(trackId) {
               </div>
               <p class="field-hint" id="audio-edit-hint"></p>
             </div>
+            <div class="field">
+              <label class="field-label">Текст песни</label>
+              <textarea class="field-textarea field-textarea--lyrics" id="edit-lyrics"
+                rows="8" placeholder="Вставьте текст песни...">${track.lyrics || ''}</textarea>
+            </div>
             <div style="display:flex;gap:8px">
               <button class="btn btn--primary btn--sm" id="btn-save-track">Сохранить</button>
               <button class="btn btn--ghost btn--sm" id="btn-cancel-track">Отмена</button>
@@ -157,6 +162,26 @@ export async function TrackView(trackId) {
           </div>
 
           ${track.description ? `<p class="track-description">${track.description}</p>` : ''}
+
+          <!-- Текст песни -->
+          ${track.lyrics ? `
+          <div class="lyrics-block" id="lyrics-block">
+            <button class="lyrics-toggle" id="lyrics-toggle">
+              <span class="lyrics-toggle-icon">${Icons.music}</span>
+              Текст песни
+              <span class="lyrics-toggle-arrow" id="lyrics-arrow">▾</span>
+            </button>
+            <div class="lyrics-content" id="lyrics-content">
+              <pre class="lyrics-text">${_escapeLyrics(track.lyrics)}</pre>
+            </div>
+          </div>` : (isOwn ? `
+          <div class="lyrics-block">
+            <button class="lyrics-toggle lyrics-toggle--empty" id="lyrics-toggle">
+              <span class="lyrics-toggle-icon">${Icons.music}</span>
+              Добавить текст песни
+              <span class="lyrics-toggle-arrow">▾</span>
+            </button>
+          </div>` : '')}
 
           <!-- Лайк + теги -->
           <div class="track-actions-row">
@@ -243,6 +268,30 @@ export async function TrackView(trackId) {
     }
   });
 
+  // ── Текст песни — toggle ──
+  const lyricsToggle = container.querySelector('#lyrics-toggle');
+  const lyricsContent = container.querySelector('#lyrics-content');
+  const lyricsArrow = container.querySelector('#lyrics-arrow');
+
+  if (lyricsToggle && lyricsContent) {
+    lyricsContent.style.display = 'none'; // закрыт по умолчанию
+    lyricsToggle.addEventListener('click', () => {
+      const isOpen = lyricsContent.style.display !== 'none';
+      lyricsContent.style.display = isOpen ? 'none' : 'block';
+      if (lyricsArrow) lyricsArrow.textContent = isOpen ? '▾' : '▴';
+    });
+  } else if (lyricsToggle && isOwn) {
+    // Кнопка «Добавить текст» — открывает форму редактирования
+    lyricsToggle.addEventListener('click', () => {
+      const form = container.querySelector('#track-edit-form');
+      if (form) {
+        form.style.display = 'block';
+        container.querySelector('#edit-lyrics')?.focus();
+        container.querySelector('#edit-lyrics')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+
   // ── Виджет оценки ──
   const rw = container.querySelector('#rating-widget-container');
   rw.appendChild(await RatingWidget(trackId, (newAvg, newCount) => {
@@ -298,15 +347,45 @@ export async function TrackView(trackId) {
       saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...';
       const updates = await updateTrackInfo(trackId, {
         title: newTitle, featArtists: featList, genre: newGenre,
+        lyrics: container.querySelector('#edit-lyrics')?.value ?? undefined,
         audioFile: localAudioFile || undefined,
       });
+      const newLyrics = container.querySelector('#edit-lyrics')?.value.trim() || '';
       const newFeat = featList.length ? ` feat. ${featList.join(', ')}` : '';
       container.querySelector('#track-title-display').innerHTML =
         newTitle + (newFeat ? `<span class="feat-str">${newFeat}</span>` : '');
-      // Обновляем жанр-бейдж
       const gb = container.querySelector('.genre-badge');
       if (gb) { const c = genreColor(newGenre); gb.textContent = newGenre; gb.style.background = c + '20'; gb.style.color = c; gb.style.borderColor = c + '40'; }
       if (updates.audioUrl) { audio.src = updates.audioUrl; audio.load(); localAudioFile = null; audioHint.textContent = ''; audioDrop.querySelector('.file-drop-icon').textContent = '🎵'; }
+
+      // Обновляем блок текста
+      const lyricsBlock = container.querySelector('#lyrics-block');
+      if (lyricsBlock) {
+        if (newLyrics) {
+          const lyricsText = lyricsBlock.querySelector('.lyrics-text');
+          if (lyricsText) {
+            lyricsText.innerHTML = _escapeLyrics(newLyrics);
+          } else {
+            lyricsBlock.innerHTML = `
+							<button class="lyrics-toggle" id="lyrics-toggle">
+								<span class="lyrics-toggle-icon">${Icons.music}</span>
+								Текст песни
+								<span class="lyrics-toggle-arrow" id="lyrics-arrow">▾</span>
+							</button>
+							<div class="lyrics-content" id="lyrics-content" style="display:none">
+								<pre class="lyrics-text">${_escapeLyrics(newLyrics)}</pre>
+							</div>`;
+            lyricsBlock.querySelector('#lyrics-toggle').addEventListener('click', () => {
+              const c = lyricsBlock.querySelector('#lyrics-content');
+              const a = lyricsBlock.querySelector('#lyrics-arrow');
+              const open = c.style.display !== 'none';
+              c.style.display = open ? 'none' : 'block';
+              if (a) a.textContent = open ? '▾' : '▴';
+            });
+          }
+        }
+      }
+
       container.querySelector('#track-edit-form').style.display = 'none';
       showToast('Трек обновлён ✓', 'success');
     } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
@@ -335,6 +414,16 @@ export async function TrackView(trackId) {
   });
 
   return { element: container, cleanup: () => audio.pause() };
+}
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+function _escapeLyrics(text) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // ─────────────────────────────────────────

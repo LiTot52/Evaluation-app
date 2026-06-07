@@ -1868,3 +1868,195 @@ svg {
 	animation: spin 0.6s linear infinite;
 	vertical-align: middle;
 }
+
+/* ═══════════════════════════════════════
+   ТЕКСТ ПЕСНИ (LYRICS)
+   ═══════════════════════════════════════ */
+.lyrics-block {
+	margin: 16px 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.lyrics-toggle {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	background: var(--surface);
+	border: none;
+	color: var(--text-2);
+	font-size: 13px;
+	font-weight: 500;
+	font-family: var(--font-body);
+	cursor: pointer;
+	transition: background var(--transition-fast), color var(--transition-fast);
+	text-align: left;
+}
+
+.lyrics-toggle:hover {
+	background: var(--surface-2);
+	color: var(--text);
+}
+
+.lyrics-toggle--empty {
+	color: var(--text-3);
+	border-style: dashed;
+}
+
+.lyrics-toggle-icon {
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-3);
+}
+
+.lyrics-toggle-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.lyrics-toggle-arrow {
+	margin-left: auto;
+	font-size: 12px;
+	color: var(--text-3);
+	transition: transform var(--transition-fast);
+}
+
+.lyrics-content {
+	border-top: 1px solid var(--border);
+	background: var(--bg-2);
+	max-height: 480px;
+	overflow-y: auto;
+}
+
+.lyrics-content::-webkit-scrollbar {
+	width: 4px;
+}
+
+.lyrics-content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb {
+	background: var(--border-2);
+	border-radius: 2px;
+}
+
+.lyrics-text {
+	font-family: var(--font-body);
+	font-size: 14px;
+	line-height: 2;
+	color: var(--text-2);
+	white-space: pre-wrap;
+	word-break: break-word;
+	padding: 20px 24px;
+	margin: 0;
+}
+
+/* Textarea для текста песни — выше обычного */
+.field-textarea--lyrics {
+	min-height: 180px;
+	line-height: 1.8;
+	font-size: 13px;
+}
+
+/* ═══════════════════════════════════════
+   ТЕКСТ ПЕСНИ (LYRICS)
+   ═══════════════════════════════════════ */
+.lyrics-block {
+	margin-top: 16px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.lyrics-toggle {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 16px;
+	background: var(--surface);
+	border: none;
+	color: var(--text-2);
+	font-size: 13px;
+	font-weight: 500;
+	font-family: var(--font-body);
+	cursor: pointer;
+	transition: background var(--transition-fast), color var(--transition-fast);
+	text-align: left;
+}
+
+.lyrics-toggle:hover {
+	background: var(--surface-2);
+	color: var(--text);
+}
+
+.lyrics-toggle--empty {
+	color: var(--text-3);
+	border-style: dashed;
+}
+
+.lyrics-toggle--empty:hover {
+	color: var(--accent);
+}
+
+.lyrics-toggle-icon {
+	display: flex;
+	align-items: center;
+}
+
+.lyrics-toggle-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.lyrics-toggle-arrow {
+	margin-left: auto;
+	font-size: 12px;
+	color: var(--text-3);
+	transition: transform var(--transition-fast);
+}
+
+.lyrics-content {
+	border-top: 1px solid var(--border);
+	background: var(--bg-2);
+	max-height: 480px;
+	overflow-y: auto;
+}
+
+.lyrics-text {
+	font-family: var(--font-body);
+	font-size: 14px;
+	line-height: 2;
+	color: var(--text-2);
+	padding: 20px 20px 24px;
+	white-space: pre-wrap;
+	word-break: break-word;
+	margin: 0;
+}
+
+/* Скроллбар внутри lyrics */
+.lyrics-content::-webkit-scrollbar {
+	width: 4px;
+}
+
+.lyrics-content::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb {
+	background: var(--border-2);
+	border-radius: 2px;
+}
+
+/* Поле ввода текста в форме загрузки и редактирования */
+.field-textarea--lyrics {
+	font-family: var(--font-body);
+	font-size: 14px;
+	line-height: 1.9;
+	min-height: 160px;
+	resize: vertical;
+}

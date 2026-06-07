@@ -188,7 +188,7 @@ export async function getTopTracks(n = 20) {
 // ─────────────────────────────────────────
 // РЕДАКТИРОВАНИЕ ТРЕКА (название, обложка)
 // ─────────────────────────────────────────
-export async function updateTrackInfo(trackId, { title, featArtists, genre, coverFile, audioFile } = {}) {
+export async function updateTrackInfo(trackId, { title, featArtists, genre, lyrics, coverFile, audioFile } = {}) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
 	const snap = await getDoc(doc(db, 'tracks', trackId));
@@ -199,13 +199,10 @@ export async function updateTrackInfo(trackId, { title, featArtists, genre, cove
 	if (title !== undefined) updates.title = title;
 	if (featArtists !== undefined) updates.featArtists = featArtists;
 	if (genre !== undefined) updates.genre = genre;
+	if (lyrics !== undefined) updates.lyrics = lyrics;
 
-	if (coverFile) {
-		updates.coverUrl = await _uploadToCloudinary(coverFile, 'image', null);
-	}
-	if (audioFile) {
-		updates.audioUrl = await _uploadToCloudinary(audioFile, 'video', null);
-	}
+	if (coverFile) updates.coverUrl = await _uploadToCloudinary(coverFile, 'image', null);
+	if (audioFile) updates.audioUrl = await _uploadToCloudinary(audioFile, 'video', null);
 
 	await updateDoc(doc(db, 'tracks', trackId), updates);
 	return updates;
@@ -253,7 +250,7 @@ export async function getUserById(uid) {
 // ─────────────────────────────────────────
 // ЗАГРУЗКА (Cloudinary)
 // ─────────────────────────────────────────
-export async function uploadTrack({ title, artist, featArtists, genre, description, audioFile, coverFile }, onProgress) {
+export async function uploadTrack({ title, artist, featArtists, genre, description, lyrics, audioFile, coverFile }, onProgress) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
 	onProgress?.('audio', 0);
@@ -273,6 +270,7 @@ export async function uploadTrack({ title, artist, featArtists, genre, descripti
 		featArtists: featArtists || [],
 		genre: genre || 'Рэп',
 		description: description || '',
+		lyrics: lyrics || '',
 		uploadedBy: currentUser.uid,
 		uploadedByName: currentUser.displayName || currentUser.email.split('@')[0],
 		audioUrl,
