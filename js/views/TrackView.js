@@ -2,12 +2,13 @@
 //   TRACKVIEW.JS
 // ══════════════════════════════════════════
 
-import { getTrackById, CRITERIA, currentUser, updateTrackInfo, deleteTrack, GENRES, likeTrack, isLiked } from '../store.js';
+import { getTrackById, CRITERIA, currentUser, updateTrackInfo, deleteTrack, GENRES } from '../store.js';
 import { RatingWidget } from '../components/RatingWidget.js';
 import { CommentsSection } from '../components/Comments.js';
 import { formatTime, showToast } from '../utils.js';
 import { goToView } from '../router.js';
-import { playTrack } from '../player.js';
+import { playTrack, stop as stopGlobal } from '../player.js';
+import { Icons } from '../icons.js';
 
 // Цвета жанров
 const GENRE_COLORS = {
