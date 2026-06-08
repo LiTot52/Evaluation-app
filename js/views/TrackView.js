@@ -2,12 +2,12 @@
 //   TRACKVIEW.JS
 // ══════════════════════════════════════════
 
-import { getTrackById, CRITERIA, currentUser, updateTrackInfo, deleteTrack, GENRES } from '../store.js';
+import { getTrackById, CRITERIA, currentUser, updateTrackInfo, deleteTrack, GENRES, likeTrack, isLiked } from '../store.js';
 import { RatingWidget } from '../components/RatingWidget.js';
 import { CommentsSection } from '../components/Comments.js';
 import { formatTime, showToast } from '../utils.js';
 import { goToView } from '../router.js';
-import { playTrack, stop as stopGlobal } from '../player.js';
+import { playTrack } from '../player.js';
 import { Icons } from '../icons.js';
 
 // Цвета жанров
@@ -33,7 +33,7 @@ export async function TrackView(trackId) {
   if (!track) {
     container.innerHTML = `
       <div class="empty-state" style="padding-top:160px">
-        <div class="empty-state-icon">❌</div>
+        <div class="empty-state-icon">${Icons.music}</div>
         <h2 class="empty-state-title">Трек не найден</h2>
         <a href="#feed" class="btn btn--ghost" style="margin-top:8px">На главную</a>
       </div>`;
@@ -61,40 +61,41 @@ export async function TrackView(trackId) {
   ).join('');
 
   container.innerHTML = `
-    <!-- РАЗМЫТЫЙ ФОН -->
     ${track.coverUrl ? `<div class="track-bg-blur" style="background-image:url('${track.coverUrl}')"></div>` : ''}
 
     <div class="track-page">
       <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="track-sidebar">
 
-        <!-- Обложка -->
         <div class="track-cover-placeholder" id="track-cover-wrap"
           style="${track.coverUrl ? `background:url('${track.coverUrl}') center/cover;` : ''}">
-          ${track.coverUrl ? '' : '🎵'}
-          ${isOwn ? `<label class="cover-change-btn" id="cover-label" title="Сменить обложку">✏️<input type="file" id="cover-change-input" accept="image/*" style="display:none"></label>` : ''}
+          ${track.coverUrl ? '' : Icons.music}
+          ${isOwn ? `
+            <label class="cover-change-btn" id="cover-label" title="Сменить обложку">
+              ${Icons.edit}
+              <input type="file" id="cover-change-input" accept="image/*" style="display:none">
+            </label>` : ''}
         </div>
 
-        <!-- Плеер с waveform -->
+        <!-- Плеер -->
         <div class="audio-player">
           <div class="player-controls">
-            <button class="player-play-btn" id="play-btn">▶</button>
+            <button class="player-play-btn" id="play-btn">${Icons.play}</button>
             <div class="player-time">
               <span id="cur-time">0:00</span> / <span id="dur-time">0:00</span>
             </div>
           </div>
-          <!-- Waveform -->
           <div class="waveform" id="waveform">
             <canvas id="waveform-canvas"></canvas>
             <div class="waveform-progress" id="waveform-progress"></div>
           </div>
           <div class="player-volume">
-            <span>🔊</span>
+            <span class="player-vol-icon">${Icons.volume}</span>
             <input type="range" min="0" max="100" value="100" id="vol-slider">
           </div>
         </div>
 
-        <!-- Разбивка -->
+        <!-- Разбивка оценок -->
         <div class="track-breakdown">
           <div class="section-label" style="margin-bottom:12px">Разбивка оценок</div>
           ${breakdownRows}
@@ -107,14 +108,13 @@ export async function TrackView(trackId) {
       <div class="track-main">
         <div class="track-info">
 
-          <!-- Жанр-бейдж -->
           ${track.genre ? `<div class="genre-badge" style="background:${gColor}20;color:${gColor};border-color:${gColor}40">${track.genre}</div>` : ''}
 
           <div class="track-title-row">
             <h1 class="track-info-title" id="track-title-display">
               ${track.title}${featStr ? `<span class="feat-str">${featStr}</span>` : ''}
             </h1>
-            ${isOwn ? `<button class="btn-icon" id="btn-edit-track">✏️</button>` : ''}
+            ${isOwn ? `<button class="btn-icon" id="btn-edit-track">${Icons.edit}</button>` : ''}
           </div>
 
           ${isOwn ? `
@@ -138,7 +138,7 @@ export async function TrackView(trackId) {
             <div class="field">
               <label class="field-label">Заменить аудио (необязательно)</label>
               <div class="file-drop file-drop--sm" id="audio-edit-drop">
-                <div class="file-drop-icon">🎵</div>
+                <div class="file-drop-icon">${Icons.music}</div>
                 <div class="file-drop-text">Перетащите или <strong>нажмите</strong></div>
                 <input type="file" id="audio-edit-input" accept="audio/*">
               </div>
@@ -172,25 +172,25 @@ export async function TrackView(trackId) {
               Текст песни
               <span class="lyrics-toggle-arrow" id="lyrics-arrow">▾</span>
             </button>
-            <div class="lyrics-content" id="lyrics-content">
+            <div class="lyrics-content" id="lyrics-content" style="display:none">
               <pre class="lyrics-text">${_escapeLyrics(track.lyrics)}</pre>
             </div>
           </div>` : (isOwn ? `
-          <div class="lyrics-block">
+          <div class="lyrics-block" id="lyrics-block">
             <button class="lyrics-toggle lyrics-toggle--empty" id="lyrics-toggle">
               <span class="lyrics-toggle-icon">${Icons.music}</span>
               Добавить текст песни
-              <span class="lyrics-toggle-arrow">▾</span>
+              <span class="lyrics-toggle-arrow">+</span>
             </button>
           </div>` : '')}
 
           <!-- Лайк + теги -->
           <div class="track-actions-row">
             <button class="like-btn ${liked ? 'like-btn--active' : ''}" id="like-btn">
-              <span class="like-icon">${liked ? '❤️' : '🤍'}</span>
+              <span class="like-icon">${liked ? Icons.heartFill : Icons.heart}</span>
               <span class="like-count" id="like-count">${track.likesCount || 0}</span>
             </button>
-            <span class="tag" id="rating-tag">⭐ ${track.totalRatings || 0} оценок</span>
+            <span class="tag" id="rating-tag">${Icons.star} ${track.totalRatings || 0} оценок</span>
           </div>
         </div>
 
@@ -213,11 +213,10 @@ export async function TrackView(trackId) {
       </div>
     </div>`;
 
-  // ── Waveform ──
+  // ── Waveform + плеер ──
   const audio = new Audio(track.audioUrl);
   const canvas = container.querySelector('#waveform-canvas');
   const wfWrap = container.querySelector('#waveform');
-  const wfProg = container.querySelector('#waveform-progress');
   const playBtn = container.querySelector('#play-btn');
   const curTime = container.querySelector('#cur-time');
   const durTime = container.querySelector('#dur-time');
@@ -226,18 +225,12 @@ export async function TrackView(trackId) {
   _initWaveform(canvas, wfWrap, audio);
 
   playBtn.addEventListener('click', () => {
-    if (audio.paused) { audio.play(); playBtn.textContent = '⏸'; }
-    else { audio.pause(); playBtn.textContent = '▶'; }
+    if (audio.paused) { audio.play(); playBtn.innerHTML = Icons.pause; }
+    else { audio.pause(); playBtn.innerHTML = Icons.play; }
   });
-  audio.addEventListener('loadedmetadata', () => {
-    durTime.textContent = formatTime(audio.duration);
-  });
-  audio.addEventListener('timeupdate', () => {
-    curTime.textContent = formatTime(audio.currentTime);
-    const pct = audio.duration ? audio.currentTime / audio.duration * 100 : 0;
-    wfProg.style.width = pct + '%';
-  });
-  audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+  audio.addEventListener('loadedmetadata', () => { durTime.textContent = formatTime(audio.duration); });
+  audio.addEventListener('timeupdate', () => { curTime.textContent = formatTime(audio.currentTime); });
+  audio.addEventListener('ended', () => { playBtn.innerHTML = Icons.play; });
   wfWrap.addEventListener('click', e => {
     if (!audio.duration) return;
     const r = wfWrap.getBoundingClientRect();
@@ -251,22 +244,16 @@ export async function TrackView(trackId) {
   let likedState = liked;
 
   likeBtn.addEventListener('click', async () => {
-    if (!currentUser) {
-      document.getElementById('auth-modal').classList.add('open');
-      return;
-    }
+    if (!currentUser) { document.getElementById('auth-modal').classList.add('open'); return; }
     try {
       likeBtn.disabled = true;
       likedState = await likeTrack(trackId);
-      likeBtn.querySelector('.like-icon').textContent = likedState ? '❤️' : '🤍';
+      likeBtn.querySelector('.like-icon').innerHTML = likedState ? Icons.heartFill : Icons.heart;
       likeBtn.classList.toggle('like-btn--active', likedState);
       const cur = parseInt(likeCount.textContent) || 0;
       likeCount.textContent = likedState ? cur + 1 : Math.max(0, cur - 1);
-    } catch (err) {
-      showToast('Ошибка: ' + err.message, 'error');
-    } finally {
-      likeBtn.disabled = false;
-    }
+    } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
+    finally { likeBtn.disabled = false; }
   });
 
   // ── Текст песни — toggle ──
@@ -275,14 +262,12 @@ export async function TrackView(trackId) {
   const lyricsArrow = container.querySelector('#lyrics-arrow');
 
   if (lyricsToggle && lyricsContent) {
-    lyricsContent.style.display = 'none'; // закрыт по умолчанию
     lyricsToggle.addEventListener('click', () => {
       const isOpen = lyricsContent.style.display !== 'none';
       lyricsContent.style.display = isOpen ? 'none' : 'block';
       if (lyricsArrow) lyricsArrow.textContent = isOpen ? '▾' : '▴';
     });
   } else if (lyricsToggle && isOwn) {
-    // Кнопка «Добавить текст» — открывает форму редактирования
     lyricsToggle.addEventListener('click', () => {
       const form = container.querySelector('#track-edit-form');
       if (form) {
@@ -298,12 +283,11 @@ export async function TrackView(trackId) {
   rw.appendChild(await RatingWidget(trackId, (newAvg, newCount) => {
     container.querySelector('#avg-score').textContent = newAvg.toFixed(1);
     container.querySelector('#total-count').textContent = `${newCount} оценок`;
-    container.querySelector('#rating-tag').textContent = `⭐ ${newCount} оценок`;
+    container.querySelector('#rating-tag').innerHTML = `${Icons.star} ${newCount} оценок`;
   }));
 
   // ── Комментарии ──
-  const cc = container.querySelector('#comments-container');
-  cc.appendChild(await CommentsSection(trackId));
+  container.querySelector('#comments-container').appendChild(await CommentsSection(trackId));
 
   if (!isOwn) return { element: container, cleanup: () => audio.pause() };
 
@@ -327,7 +311,6 @@ export async function TrackView(trackId) {
     localAudioFile = f;
     audioHint.textContent = `✓ ${f.name}`;
     audioHint.style.color = 'var(--accent)';
-    audioDrop.querySelector('.file-drop-icon').textContent = '✅';
   };
   audioInput.addEventListener('change', e => e.target.files[0] && onAudioFile(e.target.files[0]));
   audioDrop.addEventListener('dragover', e => { e.preventDefault(); audioDrop.classList.add('drag-over'); });
@@ -342,48 +325,45 @@ export async function TrackView(trackId) {
     const newTitle = container.querySelector('#edit-title').value.trim();
     const featRaw = container.querySelector('#edit-feat').value.trim();
     const newGenre = container.querySelector('#edit-genre').value;
+    const newLyrics = container.querySelector('#edit-lyrics')?.value ?? '';
     const featList = featRaw ? featRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
     if (!newTitle) { showToast('Название не может быть пустым', 'error'); return; }
     try {
       saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...';
       const updates = await updateTrackInfo(trackId, {
         title: newTitle, featArtists: featList, genre: newGenre,
-        lyrics: container.querySelector('#edit-lyrics')?.value ?? undefined,
-        audioFile: localAudioFile || undefined,
+        lyrics: newLyrics, audioFile: localAudioFile || undefined,
       });
-      const newLyrics = container.querySelector('#edit-lyrics')?.value.trim() || '';
       const newFeat = featList.length ? ` feat. ${featList.join(', ')}` : '';
       container.querySelector('#track-title-display').innerHTML =
         newTitle + (newFeat ? `<span class="feat-str">${newFeat}</span>` : '');
       const gb = container.querySelector('.genre-badge');
       if (gb) { const c = genreColor(newGenre); gb.textContent = newGenre; gb.style.background = c + '20'; gb.style.color = c; gb.style.borderColor = c + '40'; }
-      if (updates.audioUrl) { audio.src = updates.audioUrl; audio.load(); localAudioFile = null; audioHint.textContent = ''; audioDrop.querySelector('.file-drop-icon').textContent = '🎵'; }
+      if (updates.audioUrl) { audio.src = updates.audioUrl; audio.load(); localAudioFile = null; audioHint.textContent = ''; }
 
       // Обновляем блок текста
       const lyricsBlock = container.querySelector('#lyrics-block');
-      if (lyricsBlock) {
-        if (newLyrics) {
-          const lyricsText = lyricsBlock.querySelector('.lyrics-text');
-          if (lyricsText) {
-            lyricsText.innerHTML = _escapeLyrics(newLyrics);
-          } else {
-            lyricsBlock.innerHTML = `
-							<button class="lyrics-toggle" id="lyrics-toggle">
-								<span class="lyrics-toggle-icon">${Icons.music}</span>
-								Текст песни
-								<span class="lyrics-toggle-arrow" id="lyrics-arrow">▾</span>
-							</button>
-							<div class="lyrics-content" id="lyrics-content" style="display:none">
-								<pre class="lyrics-text">${_escapeLyrics(newLyrics)}</pre>
-							</div>`;
-            lyricsBlock.querySelector('#lyrics-toggle').addEventListener('click', () => {
-              const c = lyricsBlock.querySelector('#lyrics-content');
-              const a = lyricsBlock.querySelector('#lyrics-arrow');
-              const open = c.style.display !== 'none';
-              c.style.display = open ? 'none' : 'block';
-              if (a) a.textContent = open ? '▾' : '▴';
-            });
-          }
+      if (lyricsBlock && newLyrics.trim()) {
+        const existing = lyricsBlock.querySelector('.lyrics-text');
+        if (existing) {
+          existing.innerHTML = _escapeLyrics(newLyrics);
+        } else {
+          lyricsBlock.innerHTML = `
+						<button class="lyrics-toggle" id="lyrics-toggle-new">
+							<span class="lyrics-toggle-icon">${Icons.music}</span>
+							Текст песни
+							<span class="lyrics-toggle-arrow" id="lyrics-arrow-new">▾</span>
+						</button>
+						<div class="lyrics-content" id="lyrics-content-new" style="display:none">
+							<pre class="lyrics-text">${_escapeLyrics(newLyrics)}</pre>
+						</div>`;
+          lyricsBlock.querySelector('#lyrics-toggle-new').addEventListener('click', () => {
+            const c = lyricsBlock.querySelector('#lyrics-content-new');
+            const a = lyricsBlock.querySelector('#lyrics-arrow-new');
+            const open = c.style.display !== 'none';
+            c.style.display = open ? 'none' : 'block';
+            if (a) a.textContent = open ? '▾' : '▴';
+          });
         }
       }
 
@@ -393,21 +373,21 @@ export async function TrackView(trackId) {
     finally { saveBtn.disabled = false; saveBtn.textContent = 'Сохранить'; }
   });
 
-  container.querySelector('#cover-change-input')?.addEventListener('change', async (e) => {
+  // ── Смена обложки ──
+  container.querySelector('#cover-change-input')?.addEventListener('change', async e => {
     const file = e.target.files[0]; if (!file) return;
     const label = container.querySelector('#cover-label');
-    label.childNodes[0].textContent = '⏳';
     try {
       const updates = await updateTrackInfo(trackId, { coverFile: file });
       const wrap = container.querySelector('#track-cover-wrap');
       wrap.style.background = `url('${updates.coverUrl}') center/cover`;
       const bg = container.querySelector('.track-bg-blur');
       if (bg) bg.style.backgroundImage = `url('${updates.coverUrl}')`;
-      label.childNodes[0].textContent = '✏️';
       showToast('Обложка обновлена ✓', 'success');
-    } catch (err) { showToast('Ошибка: ' + err.message, 'error'); label.childNodes[0].textContent = '✏️'; }
+    } catch (err) { showToast('Ошибка: ' + err.message, 'error'); }
   });
 
+  // ── Удаление ──
   container.querySelector('#btn-delete-track')?.addEventListener('click', async () => {
     if (!confirm(`Удалить трек «${track.title}»?`)) return;
     try { await deleteTrack(trackId); audio.pause(); showToast('Трек удалён', 'success'); goToView('feed'); }
@@ -427,9 +407,6 @@ function _escapeLyrics(text) {
     .replace(/>/g, '&gt;');
 }
 
-// ─────────────────────────────────────────
-// WAVEFORM
-// ─────────────────────────────────────────
 function _initWaveform(canvas, wrap, audio) {
   const BAR_COUNT = 60;
   const bars = Array.from({ length: BAR_COUNT }, () => 0.15 + Math.random() * 0.85);
@@ -442,20 +419,15 @@ function _initWaveform(canvas, wrap, audio) {
     canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
-
     const barW = (W / BAR_COUNT) * 0.6;
     const gap = (W / BAR_COUNT) * 0.4;
     const progPx = W * progress;
-
     bars.forEach((amp, i) => {
       const x = i * (barW + gap);
       const h = Math.max(3, amp * H * 0.9);
       const y = (H - h) / 2;
       const done = x < progPx;
-
-      ctx.fillStyle = done
-        ? 'rgba(232,255,71,0.9)'
-        : 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = done ? 'rgba(232,255,71,0.9)' : 'rgba(255,255,255,0.15)';
       ctx.beginPath();
       ctx.roundRect(x, y, barW, h, 2);
       ctx.fill();
@@ -464,13 +436,12 @@ function _initWaveform(canvas, wrap, audio) {
 
   draw(0);
 
-  // Попытка Web Audio API для реального waveform
   audio.addEventListener('canplay', async () => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const actx = new (window.AudioContext || window.webkitAudioContext)();
       const res = await fetch(audio.src);
       const buf = await res.arrayBuffer();
-      const decoded = await ctx.decodeAudioData(buf);
+      const decoded = await actx.decodeAudioData(buf);
       const data = decoded.getChannelData(0);
       const step = Math.floor(data.length / BAR_COUNT);
       for (let i = 0; i < BAR_COUNT; i++) {
@@ -479,18 +450,14 @@ function _initWaveform(canvas, wrap, audio) {
         bars[i] = Math.min(1, (sum / step) * 6 + 0.08);
       }
       draw(0);
-      ctx.close();
-    } catch (e) {
-      // Используем случайные бары (уже нарисованы)
-    }
+      actx.close();
+    } catch (e) { /* используем случайные бары */ }
   }, { once: true });
 
   audio.addEventListener('timeupdate', () => {
-    const p = audio.duration ? audio.currentTime / audio.duration : 0;
-    draw(p);
+    draw(audio.duration ? audio.currentTime / audio.duration : 0);
   });
-
-  window.addEventListener('resize', () => draw(
-    audio.duration ? audio.currentTime / audio.duration : 0
-  ));
+  window.addEventListener('resize', () => {
+    draw(audio.duration ? audio.currentTime / audio.duration : 0);
+  });
 }
