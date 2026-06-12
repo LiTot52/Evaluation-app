@@ -194,6 +194,34 @@ async function showNotificationsPanel() {
 // СОБЫТИЯ
 // ─────────────────────────────────────────
 function setupEventListeners() {
+	// Тема
+	const savedTheme = localStorage.getItem('theme') || 'dark';
+	if (savedTheme === 'light') _applyTheme('light');
+
+	document.getElementById('btn-theme').addEventListener('click', () => {
+		const isLight = document.documentElement.dataset.theme === 'light';
+		_applyTheme(isLight ? 'dark' : 'light');
+	});
+
+	// Мобильный профиль
+	document.getElementById('mobile-profile-btn')?.addEventListener('click', () => {
+		if (currentUser) {
+			goToView('profile', currentUser.uid);
+		} else {
+			openAuthModal();
+		}
+	});
+
+	// Синхронизация мобильной навигации с плеером
+	const mobileNav = document.getElementById('mobile-nav');
+	const globalPlayer = document.getElementById('global-player');
+	if (mobileNav && globalPlayer) {
+		const syncNav = () => {
+			const playerActive = globalPlayer.classList.contains('active');
+			mobileNav.classList.toggle('player-hidden', !playerActive);
+		};
+		new MutationObserver(syncNav).observe(globalPlayer, { attributes: true, attributeFilter: ['class'] });
+	}
 	document.getElementById('modal-close').addEventListener('click', closeAuthModal);
 	document.getElementById('auth-modal').addEventListener('click', e => {
 		if (e.target === document.getElementById('auth-modal')) closeAuthModal();
@@ -229,6 +257,18 @@ function setupEventListeners() {
 	};
 	window.addEventListener('hashchange', syncNav);
 	syncNav();
+}
+
+// ─────────────────────────────────────────
+// ТЕМА
+// ─────────────────────────────────────────
+function _applyTheme(theme) {
+	document.documentElement.dataset.theme = theme === 'light' ? 'light' : '';
+	localStorage.setItem('theme', theme);
+	const moon = document.getElementById('theme-icon-moon');
+	const sun = document.getElementById('theme-icon-sun');
+	if (moon) moon.style.display = theme === 'light' ? 'none' : '';
+	if (sun) sun.style.display = theme === 'light' ? '' : 'none';
 }
 
 // ─────────────────────────────────────────

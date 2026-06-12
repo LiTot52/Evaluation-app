@@ -2,6 +2,7 @@
    Rateform — style.css
    ══════════════════════════════════════════ */
 
+/* ─── ТЁМНАЯ ТЕМА (по умолчанию) ─── */
 :root {
 	--bg: #080808;
 	--bg-2: #0e0e0e;
@@ -14,7 +15,6 @@
 
 	--accent: #e8ff47;
 	--accent-dim: rgba(232, 255, 71, 0.07);
-	--accent-glow: rgba(232, 255, 71, 0.25);
 	--red: #ff5252;
 	--red-dim: rgba(255, 82, 82, 0.08);
 
@@ -32,10 +32,32 @@
 
 	--header-h: 60px;
 	--player-h: 68px;
+	--bottom-nav: 60px;
 	--max-w: 1100px;
 
 	--transition: 0.18s ease;
 	--transition-fast: 0.1s ease;
+}
+
+/* ─── СВЕТЛАЯ ТЕМА ─── */
+[data-theme="light"] {
+	--bg: #f4f3ef;
+	--bg-2: #eceae4;
+	--bg-3: #e4e2db;
+	--surface: #ffffff;
+	--surface-2: #f0ede8;
+	--surface-3: #e8e5df;
+	--border: rgba(0, 0, 0, 0.07);
+	--border-2: rgba(0, 0, 0, 0.13);
+
+	--accent: #b8cc00;
+	--accent-dim: rgba(184, 204, 0, 0.09);
+	--red: #d63030;
+	--red-dim: rgba(214, 48, 48, 0.08);
+
+	--text: #1a1916;
+	--text-2: #6b6660;
+	--text-3: #a09a94;
 }
 
 *,
@@ -58,8 +80,15 @@ body {
 	line-height: 1.65;
 	min-height: 100vh;
 	-webkit-font-smoothing: antialiased;
-	/* Отступ снизу под глобальный плеер */
-	padding-bottom: calc(var(--player-h) + 16px);
+	padding-bottom: calc(var(--player-h) + var(--bottom-nav) + 8px);
+	transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* На десктопе нет bottom-nav */
+@media (min-width: 641px) {
+	body {
+		padding-bottom: calc(var(--player-h) + 16px);
+	}
 }
 
 img {
@@ -86,12 +115,6 @@ textarea {
 	display: none !important;
 }
 
-.container {
-	max-width: var(--max-w);
-	margin: 0 auto;
-	padding: 0 24px;
-}
-
 /* ═══════════════════════════════════════
    ШАПКА
    ═══════════════════════════════════════ */
@@ -100,10 +123,20 @@ textarea {
 	top: 0;
 	z-index: 100;
 	height: var(--header-h);
+	background: var(--bg);
+	border-bottom: 1px solid var(--border);
+	transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+[data-theme="light"] #site-header {
+	background: rgba(244, 243, 239, 0.95);
+	backdrop-filter: blur(16px);
+}
+
+:not([data-theme="light"]) #site-header {
 	background: rgba(8, 8, 8, 0.92);
 	backdrop-filter: blur(20px);
 	-webkit-backdrop-filter: blur(20px);
-	border-bottom: 1px solid var(--border);
 }
 
 .header-inner {
@@ -113,7 +146,7 @@ textarea {
 	height: 100%;
 	display: flex;
 	align-items: center;
-	gap: 32px;
+	gap: 24px;
 }
 
 .logo {
@@ -170,10 +203,21 @@ textarea {
 	font-weight: 500;
 }
 
+[data-theme="light"] .nav-link--upload {
+	border-color: rgba(184, 204, 0, 0.25);
+}
+
 .nav-link--upload:hover {
 	background: var(--accent);
 	color: #000;
 	border-color: var(--accent);
+}
+
+/* Скрываем десктопную навигацию на мобиле */
+@media (max-width: 640px) {
+	.main-nav {
+		display: none;
+	}
 }
 
 .header-user {
@@ -200,6 +244,12 @@ textarea {
 	font-size: 13px;
 	font-weight: 500;
 	color: var(--text);
+}
+
+@media (max-width: 640px) {
+	.user-name-sm {
+		display: none;
+	}
 }
 
 .header-user-wrap {
@@ -233,9 +283,7 @@ textarea {
 
 #btn-logout {
 	padding: 5px 10px;
-	font-size: 15px;
 	color: var(--text-3);
-	border-color: transparent;
 	background: transparent;
 	border: 1px solid transparent;
 	border-radius: var(--radius-sm);
@@ -246,6 +294,101 @@ textarea {
 	color: var(--red);
 	border-color: rgba(255, 82, 82, 0.25);
 	background: var(--red-dim);
+}
+
+/* ─── ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ─── */
+.theme-toggle {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: transparent;
+	border: 1px solid var(--border-2);
+	color: var(--text-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+	flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+	background: var(--surface);
+	color: var(--text);
+	border-color: var(--border-2);
+}
+
+.theme-toggle svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* ═══════════════════════════════════════
+   МОБИЛЬНАЯ НАВИГАЦИЯ СНИЗУ
+   ═══════════════════════════════════════ */
+#mobile-nav {
+	display: none;
+	position: fixed;
+	bottom: var(--player-h);
+	left: 0;
+	right: 0;
+	height: var(--bottom-nav);
+	background: var(--bg);
+	border-top: 1px solid var(--border);
+	z-index: 140;
+	transition: background 0.25s ease;
+}
+
+#mobile-nav.player-hidden {
+	bottom: 0;
+}
+
+@media (max-width: 640px) {
+	#mobile-nav {
+		display: flex;
+	}
+}
+
+.mobile-nav-inner {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+}
+
+.mobile-nav-item {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	color: var(--text-3);
+	font-size: 10px;
+	font-weight: 500;
+	padding: 6px 4px;
+	cursor: pointer;
+	transition: color var(--transition-fast);
+	border: none;
+	background: transparent;
+	text-decoration: none;
+}
+
+.mobile-nav-item svg {
+	width: 20px;
+	height: 20px;
+}
+
+.mobile-nav-item span {
+	letter-spacing: 0.04em;
+}
+
+.mobile-nav-item.active {
+	color: var(--accent);
+}
+
+.mobile-nav-item:hover {
+	color: var(--text-2);
 }
 
 /* ═══════════════════════════════════════
@@ -277,17 +420,32 @@ textarea {
 	}
 }
 
+/* ─── АНИМАЦИИ ПЕРЕХОДОВ ─── */
 .page {
 	max-width: var(--max-w);
 	margin: 0 auto;
 	padding: 40px 24px 0;
-	animation: fadeUp 0.25s ease both;
 }
 
-@keyframes fadeUp {
+@media (max-width: 640px) {
+	.page {
+		padding: 20px 14px 0;
+	}
+}
+
+.page-enter {
+	animation: pageIn 0.22s ease both;
+}
+
+.page-exit {
+	animation: pageOut 0.15s ease both;
+	pointer-events: none;
+}
+
+@keyframes pageIn {
 	from {
 		opacity: 0;
-		transform: translateY(10px);
+		transform: translateY(12px);
 	}
 
 	to {
@@ -296,12 +454,24 @@ textarea {
 	}
 }
 
+@keyframes pageOut {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	to {
+		opacity: 0;
+		transform: translateY(-8px);
+	}
+}
+
 .page-title {
 	font-family: var(--font-display);
-	font-size: clamp(36px, 5vw, 60px);
+	font-size: clamp(32px, 5vw, 58px);
 	line-height: 0.92;
 	letter-spacing: 0.03em;
-	margin-bottom: 36px;
+	margin-bottom: 32px;
 }
 
 .page-title span {
@@ -318,7 +488,7 @@ textarea {
 }
 
 /* ═══════════════════════════════════════
-   КНОПКИ — минималистичные
+   КНОПКИ
    ═══════════════════════════════════════ */
 .btn {
 	display: inline-flex;
@@ -334,7 +504,6 @@ textarea {
 		border-color var(--transition-fast), opacity var(--transition-fast);
 	cursor: pointer;
 	white-space: nowrap;
-	letter-spacing: 0.01em;
 }
 
 .btn:active {
@@ -352,6 +521,11 @@ textarea {
 	border-color: #f0ff60;
 }
 
+[data-theme="light"] .btn--primary:hover {
+	background: #c8dc00;
+	border-color: #c8dc00;
+}
+
 .btn--ghost {
 	background: transparent;
 	color: var(--text-2);
@@ -360,7 +534,7 @@ textarea {
 
 .btn--ghost:hover {
 	color: var(--text);
-	border-color: rgba(255, 255, 255, 0.2);
+	border-color: var(--border-2);
 	background: var(--surface);
 }
 
@@ -394,7 +568,6 @@ textarea {
 	font-size: 12px;
 }
 
-/* Кнопка-иконка */
 .btn-icon {
 	background: transparent;
 	border: 1px solid var(--border);
@@ -454,6 +627,12 @@ textarea {
 	box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
+[data-theme="light"] .field-input:focus,
+[data-theme="light"] .field-textarea:focus,
+[data-theme="light"] .field-select:focus {
+	border-color: rgba(184, 204, 0, 0.5);
+}
+
 .field-textarea {
 	resize: vertical;
 	min-height: 80px;
@@ -466,7 +645,6 @@ textarea {
 	margin-top: 2px;
 }
 
-/* File drop */
 .file-drop {
 	border: 1px dashed var(--border-2);
 	border-radius: var(--radius-md);
@@ -507,7 +685,7 @@ textarea {
 	position: fixed;
 	inset: 0;
 	z-index: 200;
-	background: rgba(0, 0, 0, 0.7);
+	background: rgba(0, 0, 0, 0.6);
 	backdrop-filter: blur(8px);
 	display: flex;
 	align-items: center;
@@ -532,12 +710,19 @@ textarea {
 	max-width: 400px;
 	position: relative;
 	transform: translateY(12px);
-	transition: transform 0.2s ease;
-	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+	transition: transform 0.2s ease, background 0.25s ease;
+	box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 .modal-overlay.open .modal {
 	transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+	.modal {
+		padding: 24px 18px;
+		border-radius: var(--radius-lg);
+	}
 }
 
 .modal-close {
@@ -624,7 +809,7 @@ textarea {
    ═══════════════════════════════════════ */
 .toast {
 	position: fixed;
-	bottom: calc(var(--player-h) + 16px);
+	bottom: calc(var(--player-h) + var(--bottom-nav) + 8px);
 	left: 50%;
 	transform: translateX(-50%) translateY(8px);
 	background: var(--surface-2);
@@ -638,6 +823,12 @@ textarea {
 	pointer-events: none;
 	transition: opacity 0.18s ease, transform 0.18s ease;
 	white-space: nowrap;
+}
+
+@media (min-width: 641px) {
+	.toast {
+		bottom: calc(var(--player-h) + 16px);
+	}
 }
 
 .toast.show {
@@ -693,7 +884,7 @@ textarea {
 	left: 0;
 	right: 0;
 	height: var(--player-h);
-	background: rgba(10, 10, 10, 0.97);
+	background: var(--bg-3);
 	border-top: 1px solid var(--border-2);
 	backdrop-filter: blur(20px);
 	z-index: 150;
@@ -701,10 +892,17 @@ textarea {
 	align-items: center;
 	gap: 16px;
 	padding: 0 20px;
+	transition: background 0.25s ease;
 }
 
 #global-player.active {
 	display: flex;
+}
+
+@media (max-width: 640px) {
+	#global-player {
+		bottom: var(--bottom-nav);
+	}
 }
 
 .gp-cover {
@@ -716,7 +914,6 @@ textarea {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 18px;
 	background-size: cover;
 	background-position: center;
 	cursor: pointer;
@@ -784,9 +981,6 @@ textarea {
 .gp-progress-wrap {
 	flex: 2;
 	max-width: 400px;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
 }
 
 .gp-progress {
@@ -794,12 +988,11 @@ textarea {
 	background: var(--surface-3);
 	border-radius: 2px;
 	cursor: pointer;
-	position: relative;
+	transition: height var(--transition-fast);
 }
 
 .gp-progress:hover {
 	height: 5px;
-	margin: -1px 0;
 }
 
 .gp-progress-fill {
@@ -818,8 +1011,7 @@ textarea {
 	flex-shrink: 0;
 }
 
-.gp-volume span {
-	font-size: 14px;
+.gp-vol-icon {
 	color: var(--text-3);
 }
 
@@ -832,7 +1024,6 @@ textarea {
 	background: transparent;
 	border: none;
 	color: var(--text-3);
-	font-size: 16px;
 	padding: 4px;
 	flex-shrink: 0;
 	transition: color var(--transition-fast);
@@ -852,40 +1043,31 @@ textarea {
 	}
 
 	.gp-info {
-		max-width: 120px;
+		max-width: 150px;
 	}
 }
 
 /* ═══════════════════════════════════════
-   АДАПТИВ
+   ПЛЕЙЛИСТ — шапка
+   ═══════════════════════════════════════ */
+.playlist-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20px;
+}
+
+.playlist-count {
+	font-size: 13px;
+	color: var(--text-3);
+}
+
+/* ═══════════════════════════════════════
+   HEADER АДАПТИВ
    ═══════════════════════════════════════ */
 @media (max-width: 680px) {
 	.header-inner {
-		gap: 16px;
+		gap: 12px;
 		padding: 0 14px;
-	}
-
-	.nav-link {
-		padding: 6px 10px;
-		font-size: 13px;
-	}
-
-	.page {
-		padding: 24px 14px 0;
-	}
-
-	.modal {
-		padding: 24px 18px;
-		border-radius: var(--radius-lg);
-	}
-}
-
-@media (max-width: 480px) {
-	.logo {
-		font-size: 22px;
-	}
-
-	.nav-link:not(.nav-link--upload) span {
-		display: none;
 	}
 }
