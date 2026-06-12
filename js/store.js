@@ -44,7 +44,7 @@ export const CRITERIA = [
 	{
 		key: 'blend',
 		label: 'Сочетание',
-		desc: 'Насколько гармонично голос артиста лёг на музыку — единство трека как целого',
+		desc: 'Насколько гармонично голос артиста легёт на музыку — единство трека как целого',
 	},
 	{
 		key: 'repeat',
@@ -568,4 +568,60 @@ async function _notifyRated(trackId) {
 			createdAt: new Date(),
 		});
 	} catch (e) { console.warn('notify error', e); }
+}
+
+// ─────────────────────────────────────────
+// СЧЁТЧИК ПРОСЛУШИВАНИЙ
+// ─────────────────────────────────────────
+export async function incrementPlayCount(trackId) {
+	try {
+		const ref = doc(db, 'tracks', trackId);
+		const snap = await getDoc(ref);
+		if (snap.exists()) {
+			await updateDoc(ref, { playCount: (snap.data().playCount || 0) + 1 });
+		}
+	} catch (e) { /* тихо игнорируем */ }
+}
+
+// ─────────────────────────────────────────
+// ПЛЕЙЛИСТ (лайкнутые треки)
+// ─────────────────────────────────────────
+export async function getLikedTracks(uid) {
+	const snap = await getDocs(
+		query(collection(db, 'likes'), where('userId', '==', uid))
+	);
+	if (snap.empty) return [];
+	const trackIds = snap.docs.map(d => d.data().trackId);
+	const results = await Promise.all(trackIds.map(id => getDoc(doc(db, 'tracks', id))));
+	return results
+		.filter(d => d.exists())
+		.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// ─────────────────────────────────────────
+// СЧЁТЧИК ПРОСЛУШИВАНИЙ
+// ─────────────────────────────────────────
+export async function incrementPlayCount(trackId) {
+	try {
+		const ref = doc(db, 'tracks', trackId);
+		const snap = await getDoc(ref);
+		if (snap.exists()) {
+			await updateDoc(ref, { playCount: (snap.data().playCount || 0) + 1 });
+		}
+	} catch (e) { /* тихо игнорируем */ }
+}
+
+// ─────────────────────────────────────────
+// ПЛЕЙЛИСТ (лайкнутые треки)
+// ─────────────────────────────────────────
+export async function getLikedTracks(uid) {
+	const snap = await getDocs(
+		query(collection(db, 'likes'), where('userId', '==', uid))
+	);
+	if (snap.empty) return [];
+	const trackIds = snap.docs.map(d => d.data().trackId);
+	const results = await Promise.all(trackIds.map(id => getDoc(doc(db, 'tracks', id))));
+	return results
+		.filter(d => d.exists())
+		.map(d => ({ id: d.id, ...d.data() }));
 }
