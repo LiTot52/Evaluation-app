@@ -5,7 +5,6 @@
 import { formatTime } from './utils.js';
 import { Icons } from './icons.js';
 import { incrementPlayCount } from './store.js';
-import { incrementPlayCount } from './store.js';
 
 let _audio = null;
 let _trackId = null;
@@ -92,7 +91,7 @@ export function playTrack(track) {
 	});
 	_audio.addEventListener('timeupdate', () => {
 		if (!_audio) return;
-		// Засчитываем прослушивание после 15 секунд
+		// Засчитываем после 15 секунд (один раз за трек)
 		if (!_counted && _audio.currentTime >= 15) {
 			_counted = true;
 			incrementPlayCount(track.id);
@@ -101,10 +100,12 @@ export function playTrack(track) {
 		fill.style.width = pct + '%';
 		time.textContent = `${formatTime(_audio.currentTime)} / ${formatTime(_audio.duration || 0)}`;
 	});
-	_audio.addEventListener('ended', () => { playBtn.innerHTML = Icons.play; fill.style.width = '0%'; });
+	_audio.addEventListener('ended', () => {
+		playBtn.innerHTML = Icons.play;
+		fill.style.width = '0%';
+	});
 
 	_audio.play().catch(err => console.warn('Autoplay blocked:', err));
-	incrementPlayCount(track.id);
 }
 
 export function togglePlay() {
