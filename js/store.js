@@ -26,31 +26,11 @@ export let currentUser = null;
 export let tracks = [];
 
 export const CRITERIA = [
-	{
-		key: 'voice',
-		label: 'Голос и подача',
-		desc: 'Качество исполнения: интонация, дикция, уверенность и харизма артиста на микрофоне',
-	},
-	{
-		key: 'lyrics',
-		label: 'Текст и смысл',
-		desc: 'Насколько интересны строчки? Есть ли образы, смысл и запоминающиеся моменты?',
-	},
-	{
-		key: 'music',
-		label: 'Музыка',
-		desc: 'Качество бита или минуса: мелодия, ритм и общее звучание инструментала',
-	},
-	{
-		key: 'blend',
-		label: 'Сочетание',
-		desc: 'Насколько гармонично голос артиста легёт на музыку — единство трека как целого',
-	},
-	{
-		key: 'repeat',
-		label: 'Репит-фактор',
-		desc: 'Хочется ли слушать этот трек снова? Остаётся ли он в голове после прослушивания?',
-	},
+	{ key: 'voice', label: 'Голос и подача', desc: 'Качество исполнения: интонация, дикция, уверенность и харизма артиста на микрофоне' },
+	{ key: 'lyrics', label: 'Текст и смысл', desc: 'Насколько интересны строчки? Есть ли образы, смысл и запоминающиеся моменты?' },
+	{ key: 'music', label: 'Музыка', desc: 'Качество бита или минуса: мелодия, ритм и общее звучание инструментала' },
+	{ key: 'blend', label: 'Сочетание', desc: 'Насколько гармонично голос артиста лёг на музыку — единство трека как целого' },
+	{ key: 'repeat', label: 'Репит-фактор', desc: 'Хочется ли слушать этот трек снова? Остаётся ли он в голове после прослушивания?' },
 ];
 
 export const GENRES = [
@@ -107,21 +87,14 @@ export function onAuthChange(callback) {
 }
 
 // ─────────────────────────────────────────
-// ПРОФИЛЬ: никнейм и аватар
+// ПРОФИЛЬ
 // ─────────────────────────────────────────
 export async function updateUsername(newName) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 	await updateProfile(currentUser, { displayName: newName });
 	await updateDoc(doc(db, 'users', currentUser.uid), { username: newName });
-
-	// Обновляем имя автора во всех его треках
-	const snap = await getDocs(
-		query(collection(db, 'tracks'), where('uploadedBy', '==', currentUser.uid))
-	);
-	const updates = snap.docs.map(d =>
-		updateDoc(doc(db, 'tracks', d.id), { uploadedByName: newName })
-	);
-	await Promise.all(updates);
+	const snap = await getDocs(query(collection(db, 'tracks'), where('uploadedBy', '==', currentUser.uid)));
+	await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'tracks', d.id), { uploadedByName: newName })));
 }
 
 export async function updateAvatar(file) {
@@ -170,9 +143,7 @@ export async function getTrackById(id) {
 }
 
 export async function getTracksByUser(uid) {
-	const snap = await getDocs(
-		query(collection(db, 'tracks'), where('uploadedBy', '==', uid))
-	);
+	const snap = await getDocs(query(collection(db, 'tracks'), where('uploadedBy', '==', uid)));
 	return _sortByDate(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 }
 
@@ -186,11 +157,10 @@ export async function getTopTracks(n = 20) {
 }
 
 // ─────────────────────────────────────────
-// РЕДАКТИРОВАНИЕ ТРЕКА (название, обложка)
+// РЕДАКТИРОВАНИЕ ТРЕКА
 // ─────────────────────────────────────────
 export async function updateTrackInfo(trackId, { title, featArtists, genre, lyrics, coverFile, audioFile } = {}) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
-
 	const snap = await getDoc(doc(db, 'tracks', trackId));
 	if (!snap.exists()) throw new Error('Трек не найден');
 	if (snap.data().uploadedBy !== currentUser.uid) throw new Error('Нет прав');
@@ -200,7 +170,6 @@ export async function updateTrackInfo(trackId, { title, featArtists, genre, lyri
 	if (featArtists !== undefined) updates.featArtists = featArtists;
 	if (genre !== undefined) updates.genre = genre;
 	if (lyrics !== undefined) updates.lyrics = lyrics;
-
 	if (coverFile) updates.coverUrl = await _uploadToCloudinary(coverFile, 'image', null);
 	if (audioFile) updates.audioUrl = await _uploadToCloudinary(audioFile, 'video', null);
 
@@ -213,30 +182,22 @@ export async function updateTrackInfo(trackId, { title, featArtists, genre, lyri
 // ─────────────────────────────────────────
 export async function deleteTrack(trackId) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
-
 	const snap = await getDoc(doc(db, 'tracks', trackId));
 	if (!snap.exists()) throw new Error('Трек не найден');
 	if (snap.data().uploadedBy !== currentUser.uid) throw new Error('Нет прав');
 
-	// Удаляем все оценки трека
-	const ratingsSnap = await getDocs(
-		query(collection(db, 'ratings'), where('trackId', '==', trackId))
-	);
+	const ratingsSnap = await getDocs(query(collection(db, 'ratings'), where('trackId', '==', trackId)));
 	await Promise.all(ratingsSnap.docs.map(d => deleteDoc(d.ref)));
-
-	// Удаляем сам трек
 	await deleteDoc(doc(db, 'tracks', trackId));
 
-	// Обновляем счётчик
 	try {
 		const uSnap = await getDoc(doc(db, 'users', currentUser.uid));
 		if (uSnap.exists()) {
-			const count = Math.max(0, (uSnap.data().uploadsCount || 1) - 1);
-			await updateDoc(doc(db, 'users', currentUser.uid), { uploadsCount: count });
+			await updateDoc(doc(db, 'users', currentUser.uid), {
+				uploadsCount: Math.max(0, (uSnap.data().uploadsCount || 1) - 1),
+			});
 		}
-	} catch (e) {
-		console.warn('Could not update uploadsCount:', e);
-	}
+	} catch (e) { console.warn('Could not update uploadsCount:', e); }
 }
 
 // ─────────────────────────────────────────
@@ -254,30 +215,25 @@ export async function uploadTrack({ title, artist, featArtists, genre, descripti
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
 
 	onProgress?.('audio', 0);
-	const audioUrl = await _uploadToCloudinary(audioFile, 'video', (p) => {
-		onProgress?.('audio', p);
-	});
+	const audioUrl = await _uploadToCloudinary(audioFile, 'video', p => onProgress?.('audio', p));
 
 	onProgress?.('cover', 0);
-	const coverUrl = await _uploadToCloudinary(coverFile, 'image', (p) => {
-		onProgress?.('cover', p);
-	});
+	const coverUrl = await _uploadToCloudinary(coverFile, 'image', p => onProgress?.('cover', p));
 
 	const breakdown = Object.fromEntries(CRITERIA.map(c => [c.key, 0]));
 	const trackData = {
-		title,
-		artist,
+		title, artist,
 		featArtists: featArtists || [],
 		genre: genre || 'Рэп',
 		description: description || '',
 		lyrics: lyrics || '',
 		uploadedBy: currentUser.uid,
 		uploadedByName: currentUser.displayName || currentUser.email.split('@')[0],
-		audioUrl,
-		coverUrl,
-		averageRating: 0,
-		totalRatings: 0,
+		audioUrl, coverUrl,
+		averageRating: 0, totalRatings: 0,
 		ratingBreakdown: breakdown,
+		playCount: 0,
+		likesCount: 0,
 		createdAt: new Date(),
 	};
 
@@ -290,9 +246,7 @@ export async function uploadTrack({ title, artist, featArtists, genre, descripti
 				uploadsCount: (uSnap.data().uploadsCount || 0) + 1,
 			});
 		}
-	} catch (e) {
-		console.warn('Could not update uploadsCount:', e);
-	}
+	} catch (e) { console.warn('Could not update uploadsCount:', e); }
 
 	return { id: docRef.id, ...trackData };
 }
@@ -305,44 +259,28 @@ function _uploadToCloudinary(file, resourceType, onProgress) {
 		formData.append('cloud_name', CLOUDINARY_CLOUD_NAME);
 
 		const xhr = new XMLHttpRequest();
-		const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+		xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, true);
 
-		xhr.open('POST', url, true);
-
-		xhr.upload.addEventListener('progress', (e) => {
-			if (e.lengthComputable) {
-				const pct = Math.round((e.loaded / e.total) * 100);
-				onProgress?.(pct);
-			}
+		xhr.upload.addEventListener('progress', e => {
+			if (e.lengthComputable) onProgress?.(Math.round(e.loaded / e.total * 100));
 		});
-
 		xhr.addEventListener('load', () => {
 			if (xhr.status === 200) {
-				try {
-					const data = JSON.parse(xhr.responseText);
-					resolve(data.secure_url);
-				} catch {
-					reject(new Error('Ошибка ответа Cloudinary'));
-				}
+				try { resolve(JSON.parse(xhr.responseText).secure_url); }
+				catch { reject(new Error('Ошибка ответа Cloudinary')); }
 			} else {
-				try {
-					const err = JSON.parse(xhr.responseText);
-					reject(new Error(`Cloudinary: ${err.error?.message || xhr.status}`));
-				} catch {
-					reject(new Error(`Ошибка загрузки: ${xhr.status}`));
-				}
+				try { reject(new Error(`Cloudinary: ${JSON.parse(xhr.responseText).error?.message || xhr.status}`)); }
+				catch { reject(new Error(`Ошибка загрузки: ${xhr.status}`)); }
 			}
 		});
-
-		xhr.addEventListener('error', () => reject(new Error('Ошибка сети при загрузке на Cloudinary')));
+		xhr.addEventListener('error', () => reject(new Error('Ошибка сети')));
 		xhr.addEventListener('abort', () => reject(new Error('Загрузка отменена')));
-
 		xhr.send(formData);
 	});
 }
 
 // ─────────────────────────────────────────
-// ОЦЕНКИ (только не свои треки)
+// ОЦЕНКИ
 // ─────────────────────────────────────────
 export async function getCurrentRating(trackId) {
 	if (!currentUser) return null;
@@ -352,8 +290,6 @@ export async function getCurrentRating(trackId) {
 
 export async function rateTrack(trackId, scores) {
 	if (!currentUser) throw new Error('Нужно войти в аккаунт');
-
-	// Нельзя оценивать свой трек
 	const trackSnap = await getDoc(doc(db, 'tracks', trackId));
 	if (trackSnap.exists() && trackSnap.data().uploadedBy === currentUser.uid) {
 		throw new Error('Нельзя оценивать собственный трек');
@@ -363,19 +299,16 @@ export async function rateTrack(trackId, scores) {
 	const total = Math.round(keys.reduce((s, k) => s + (scores[k] || 0), 0) / keys.length * 10) / 10;
 
 	await setDoc(doc(db, 'ratings', `${currentUser.uid}_${trackId}`), {
-		trackId, userId: currentUser.uid,
-		...scores, total, ratedAt: new Date(),
+		trackId, userId: currentUser.uid, ...scores, total, ratedAt: new Date(),
 	});
 
 	const result = await _recalcTrack(trackId);
-	_notifyRated(trackId); // fire-and-forget
+	_notifyRated(trackId);
 	return result;
 }
 
 async function _recalcTrack(trackId) {
-	const snap = await getDocs(
-		query(collection(db, 'ratings'), where('trackId', '==', trackId))
-	);
+	const snap = await getDocs(query(collection(db, 'ratings'), where('trackId', '==', trackId)));
 	if (snap.empty) return null;
 
 	const all = snap.docs.map(d => d.data());
@@ -383,23 +316,16 @@ async function _recalcTrack(trackId) {
 	const breakdown = {};
 
 	CRITERIA.forEach(({ key }) => {
-		breakdown[key] = Math.round(
-			all.reduce((s, r) => s + (r[key] || 0), 0) / count * 10
-		) / 10;
+		breakdown[key] = Math.round(all.reduce((s, r) => s + (r[key] || 0), 0) / count * 10) / 10;
 	});
 
 	const avg = Math.round(
 		Object.values(breakdown).reduce((s, v) => s + v, 0) / CRITERIA.length * 10
 	) / 10;
 
-	await updateDoc(doc(db, 'tracks', trackId), {
-		averageRating: avg, totalRatings: count, ratingBreakdown: breakdown,
-	});
-
+	await updateDoc(doc(db, 'tracks', trackId), { averageRating: avg, totalRatings: count, ratingBreakdown: breakdown });
 	return { averageRating: avg, totalRatings: count, ratingBreakdown: breakdown };
 }
-
-console.log('%c✅ Store ready (Cloudinary)', 'color:#e8ff47;font-weight:bold');
 
 // ─────────────────────────────────────────
 // ЛАЙКИ
@@ -409,19 +335,21 @@ export async function likeTrack(trackId) {
 	const likeId = `${currentUser.uid}_${trackId}`;
 	const ref = doc(db, 'likes', likeId);
 	const snap = await getDoc(ref);
+
 	if (snap.exists()) {
 		await deleteDoc(ref);
+		const tSnap = await getDoc(doc(db, 'tracks', trackId));
 		await updateDoc(doc(db, 'tracks', trackId), {
-			likesCount: Math.max(0, (await getDoc(doc(db, 'tracks', trackId))).data().likesCount - 1)
+			likesCount: Math.max(0, (tSnap.data().likesCount || 1) - 1),
 		});
-		return false; // unliked
+		return false;
 	} else {
 		await setDoc(ref, { trackId, userId: currentUser.uid, createdAt: new Date() });
 		const tSnap = await getDoc(doc(db, 'tracks', trackId));
 		await updateDoc(doc(db, 'tracks', trackId), {
-			likesCount: (tSnap.data().likesCount || 0) + 1
+			likesCount: (tSnap.data().likesCount || 0) + 1,
 		});
-		return true; // liked
+		return true;
 	}
 }
 
@@ -429,6 +357,25 @@ export async function isLiked(trackId) {
 	if (!currentUser) return false;
 	const snap = await getDoc(doc(db, 'likes', `${currentUser.uid}_${trackId}`));
 	return snap.exists();
+}
+
+export async function getLikedTracks(uid) {
+	const snap = await getDocs(query(collection(db, 'likes'), where('userId', '==', uid)));
+	if (snap.empty) return [];
+	const trackIds = snap.docs.map(d => d.data().trackId);
+	const results = await Promise.all(trackIds.map(id => getDoc(doc(db, 'tracks', id))));
+	return results.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }));
+}
+
+// ─────────────────────────────────────────
+// СЧЁТЧИК ПРОСЛУШИВАНИЙ
+// ─────────────────────────────────────────
+export async function incrementPlayCount(trackId) {
+	try {
+		const ref = doc(db, 'tracks', trackId);
+		const snap = await getDoc(ref);
+		if (snap.exists()) await updateDoc(ref, { playCount: (snap.data().playCount || 0) + 1 });
+	} catch (e) { /* тихо игнорируем */ }
 }
 
 // ─────────────────────────────────────────
@@ -439,27 +386,22 @@ export async function addComment(trackId, text) {
 	if (!text.trim()) throw new Error('Комментарий не может быть пустым');
 
 	const ref = await addDoc(collection(db, 'comments'), {
-		trackId,
-		userId: currentUser.uid,
+		trackId, userId: currentUser.uid,
 		userName: currentUser.displayName || currentUser.email.split('@')[0],
 		userAvatar: currentUser.photoURL || null,
-		text: text.trim(),
-		createdAt: new Date(),
+		text: text.trim(), createdAt: new Date(),
 	});
 
-	// Уведомление автору трека (если комментирует не сам автор)
 	const tSnap = await getDoc(doc(db, 'tracks', trackId));
 	if (tSnap.exists() && tSnap.data().uploadedBy !== currentUser.uid) {
 		await addDoc(collection(db, 'notifications'), {
 			toUid: tSnap.data().uploadedBy,
 			fromUid: currentUser.uid,
 			fromName: currentUser.displayName || currentUser.email.split('@')[0],
-			type: 'comment',
-			trackId,
+			type: 'comment', trackId,
 			trackTitle: tSnap.data().title,
 			text: text.trim().slice(0, 80),
-			read: false,
-			createdAt: new Date(),
+			read: false, createdAt: new Date(),
 		});
 	}
 
@@ -467,14 +409,12 @@ export async function addComment(trackId, text) {
 		id: ref.id, trackId, userId: currentUser.uid,
 		userName: currentUser.displayName || currentUser.email.split('@')[0],
 		userAvatar: currentUser.photoURL || null,
-		text: text.trim(), createdAt: new Date()
+		text: text.trim(), createdAt: new Date(),
 	};
 }
 
 export async function getComments(trackId) {
-	const snap = await getDocs(
-		query(collection(db, 'comments'), where('trackId', '==', trackId))
-	);
+	const snap = await getDocs(query(collection(db, 'comments'), where('trackId', '==', trackId)));
 	return snap.docs
 		.map(d => ({ id: d.id, ...d.data() }))
 		.sort((a, b) => {
@@ -497,9 +437,7 @@ export async function deleteComment(commentId) {
 // ─────────────────────────────────────────
 export async function getNotifications() {
 	if (!currentUser) return [];
-	const snap = await getDocs(
-		query(collection(db, 'notifications'), where('toUid', '==', currentUser.uid))
-	);
+	const snap = await getDocs(query(collection(db, 'notifications'), where('toUid', '==', currentUser.uid)));
 	return snap.docs
 		.map(d => ({ id: d.id, ...d.data() }))
 		.sort((a, b) => {
@@ -512,9 +450,7 @@ export async function getNotifications() {
 export async function markNotificationsRead() {
 	if (!currentUser) return;
 	const snap = await getDocs(
-		query(collection(db, 'notifications'),
-			where('toUid', '==', currentUser.uid),
-			where('read', '==', false))
+		query(collection(db, 'notifications'), where('toUid', '==', currentUser.uid), where('read', '==', false))
 	);
 	await Promise.all(snap.docs.map(d => updateDoc(d.ref, { read: true })));
 }
@@ -522,9 +458,7 @@ export async function markNotificationsRead() {
 export function subscribeToNotifications(callback) {
 	if (!currentUser) return () => { };
 	return onSnapshot(
-		query(collection(db, 'notifications'),
-			where('toUid', '==', currentUser.uid),
-			where('read', '==', false)),
+		query(collection(db, 'notifications'), where('toUid', '==', currentUser.uid), where('read', '==', false)),
 		snap => callback(snap.size),
 		err => console.warn('notifications subscribe error:', err)
 	);
@@ -549,7 +483,9 @@ export async function searchTracks(q) {
 		.slice(0, 40);
 }
 
-// Уведомление при оценке (вызывается из rateTrack)
+// ─────────────────────────────────────────
+// ВНУТРЕННИЕ ХЕЛПЕРЫ
+// ─────────────────────────────────────────
 async function _notifyRated(trackId) {
 	try {
 		const tSnap = await getDoc(doc(db, 'tracks', trackId));
@@ -560,68 +496,11 @@ async function _notifyRated(trackId) {
 			toUid: owner,
 			fromUid: currentUser.uid,
 			fromName: currentUser.displayName || currentUser.email.split('@')[0],
-			type: 'rating',
-			trackId,
+			type: 'rating', trackId,
 			trackTitle: tSnap.data().title,
-			text: '',
-			read: false,
-			createdAt: new Date(),
+			text: '', read: false, createdAt: new Date(),
 		});
 	} catch (e) { console.warn('notify error', e); }
 }
 
-// ─────────────────────────────────────────
-// СЧЁТЧИК ПРОСЛУШИВАНИЙ
-// ─────────────────────────────────────────
-export async function incrementPlayCount(trackId) {
-	try {
-		const ref = doc(db, 'tracks', trackId);
-		const snap = await getDoc(ref);
-		if (snap.exists()) {
-			await updateDoc(ref, { playCount: (snap.data().playCount || 0) + 1 });
-		}
-	} catch (e) { /* тихо игнорируем */ }
-}
-
-// ─────────────────────────────────────────
-// ПЛЕЙЛИСТ (лайкнутые треки)
-// ─────────────────────────────────────────
-export async function getLikedTracks(uid) {
-	const snap = await getDocs(
-		query(collection(db, 'likes'), where('userId', '==', uid))
-	);
-	if (snap.empty) return [];
-	const trackIds = snap.docs.map(d => d.data().trackId);
-	const results = await Promise.all(trackIds.map(id => getDoc(doc(db, 'tracks', id))));
-	return results
-		.filter(d => d.exists())
-		.map(d => ({ id: d.id, ...d.data() }));
-}
-
-// ─────────────────────────────────────────
-// СЧЁТЧИК ПРОСЛУШИВАНИЙ
-// ─────────────────────────────────────────
-export async function incrementPlayCount(trackId) {
-	try {
-		const ref = doc(db, 'tracks', trackId);
-		const snap = await getDoc(ref);
-		if (snap.exists()) {
-			await updateDoc(ref, { playCount: (snap.data().playCount || 0) + 1 });
-		}
-	} catch (e) { /* тихо игнорируем */ }
-}
-
-// ─────────────────────────────────────────
-// ПЛЕЙЛИСТ (лайкнутые треки)
-// ─────────────────────────────────────────
-export async function getLikedTracks(uid) {
-	const snap = await getDocs(
-		query(collection(db, 'likes'), where('userId', '==', uid))
-	);
-	if (snap.empty) return [];
-	const trackIds = snap.docs.map(d => d.data().trackId);
-	const results = await Promise.all(trackIds.map(id => getDoc(doc(db, 'tracks', id))));
-	return results
-		.filter(d => d.exists())
-		.map(d => ({ id: d.id, ...d.data() }));
-}
+console.log('%c✅ Store ready (Cloudinary)', 'color:#e8ff47;font-weight:bold');
